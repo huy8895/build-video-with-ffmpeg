@@ -25,14 +25,11 @@ jobs:
         with:
           node-version: 20
 
-      - name: 🧪 Create test message and send to Telegram
+      - name: 📣 Send Telegram notification
         run: |
-          export MESSAGE="$(cat <<EOF
-  🎉 Video #${{ github.event.inputs.video_number }} - test tele done: Adjusted speed & transcript completed!
-  📂 Google Drive folder: ${{ github.event.inputs.folder_url }}
-  EOF
-  )"
-  node scripts/send_telegram_message.js
-env:
-  TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-  TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          export MESSAGE="🎉 Video #${{ github.event.inputs.video_number }} done!\n📂 ${{ github.event.inputs.folder_url }}"
+          node scripts/send_telegram_message.js
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+

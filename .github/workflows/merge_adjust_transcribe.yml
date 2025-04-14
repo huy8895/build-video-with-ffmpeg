@@ -96,10 +96,10 @@ jobs:
             --max_words_per_line ${{ github.event.inputs.max_words_per_line }} \
             --output_dir output
 
-      - name: 🏷️ Đổi tên file đầu ra
+      - name: 🏷️ Đổi tên file đầu ra && Di chuyển file đầu ra về thư mục gốc
         run: |
           mv output/audio_adjusted.srt transcript.srt
-
+          cp adjusted/audio_adjusted.mp3 audio_adjusted.mp3
       - name: ⬆️ Upload kết quả về Google Drive
         env:
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}

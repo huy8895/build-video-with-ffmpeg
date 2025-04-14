@@ -2,8 +2,11 @@
 
 - zip toàn bộ file mp3 trong  thư mục và đẩy lên google drive
 ```shell
-zip mp3_files.zip *.mp3
+zip audio.zip *.mp3
 ```
+- tải lên drive đúng tên các file
+1. audio.zip
+2. content.txt
 
 để upload được video lên youtube:
 - tạo project mới trên google cloud

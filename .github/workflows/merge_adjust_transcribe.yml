@@ -108,3 +108,10 @@ jobs:
           FOLDER_URL: ${{ github.event.inputs.folder_url }}
         run: |
           python scripts/upload_results_to_drive.py audio_adjusted.mp3 transcript.srt
+      - name: 📣 Notify Telegram
+        run: |
+          MESSAGE="🎉 Video #${{ github.event.inputs.video_number }} done: Adjusted speed & transcript completed!\n🔗 Drive: ${{ github.event.inputs.drive_url }}" \
+          node scripts/send_telegram_message.js
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}

@@ -1,0 +1,33 @@
+name: Test Download from Google Drive
+
+on:
+  workflow_dispatch:
+    inputs:
+      file_id:
+        description: "Google Drive File ID"
+        required: true
+      file_name:
+        description: "Tên file sau khi tải về"
+        required: false
+        default: "downloaded_file.zip"
+
+jobs:
+  test-download:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout source
+        uses: actions/checkout@v4
+
+      - name: 🛠️ Setup Python environment
+        run: pip install google-auth google-api-python-client
+
+      - name: ⬇️ Download file from Google Drive
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          DRIVE_FILE_ID: ${{ github.event.inputs.file_id }}
+          DRIVE_FILE_NAME: ${{ github.event.inputs.file_name }}
+        run: |
+          python scripts/download_drive_file.py

@@ -1,0 +1,85 @@
+name: Process Artifact After Transcribe
+
+on:
+  workflow_run:
+    workflows: ["Merge, Adjust Speed, and Transcribe MP3"]
+    types:
+      - completed
+
+  workflow_dispatch:
+    inputs:
+      artifact_id:
+        description: 'Artifact ID (để trống nếu chạy tự động)'
+        required: false
+        default: ''
+      maxChar:
+        description: 'Số ký tự tối đa mỗi slide'
+        required: false
+        default: '200'
+      minChar:
+        description: 'Số ký tự tối thiểu mỗi slide'
+        required: false
+        default: '100'
+      matchThreshold:
+        description: 'Mức độ khớp tối thiểu (%)'
+        required: false
+        default: '90'
+      maxOffset:
+        description: 'Số từ lệch tối đa khi so sánh khớp'
+        required: false
+        default: '3'
+
+jobs:
+  process-artifact:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout source
+        uses: actions/checkout@v4
+
+      - name: 📥 Download artifact
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const downloadArtifact = require('./scripts/download_artifact');
+            await downloadArtifact({github, context, core}, "${{ github.event.inputs.artifact_id }}");
+
+      - name: 📂 Unzip artifact
+        run: |
+          unzip artifact.zip -d artifact_contents
+          echo "✅ Files in artifact:"
+          ls artifact_contents
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 📦 Install dependencies
+        run: npm install fs-extra compromise minimist
+
+      - name: ⚙️ Run generate timing script
+        run: |
+          SRT=$(find artifact_contents -name "*.srt" | head -n 1)
+          node scripts/generate_timing_json_with_parser.js \
+            --srt "$SRT" \
+            --content video/content.txt \
+            --maxChar "${{ github.event.inputs.maxChar || 200 }}" \
+            --minChar "${{ github.event.inputs.minChar || 100 }}" \
+            --matchThreshold "${{ github.event.inputs.matchThreshold || 90 }}" \
+            --maxOffset "${{ github.event.inputs.maxOffset || 3 }}"
+
+      - name: 📦 Prepare files and zip for next workflow
+        run: |
+          mkdir -p final_artifact
+          cp artifact_contents/*.mp3 final_artifact/audio.mp3
+          cp video/content.txt final_artifact/content.txt
+          cp slides-timing.json final_artifact/timing.json
+          zip -r final_package.zip final_artifact/
+
+      - name: ⬆️ Upload final package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-package
+          path: final_package.zip

@@ -27,11 +27,13 @@ jobs:
 
       - name: 📣 Send Telegram notification
         run: |
-          MESSAGE="🎉 Video #${{ github.event.inputs.video_number }} done! 📂 ${{ github.event.inputs.folder_url }}"
-          export MESSAGE
-          node scripts/send_telegram_message.js
+          node scripts/send_telegram_message.js <<EOF
+          🎉 Video #${{ github.event.inputs.video_number }} done!
+          📂 ${{ github.event.inputs.folder_url }}
+          EOF
     env:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
 
 

@@ -3,6 +3,9 @@ name: Merge, Adjust Speed, and Transcribe MP3
 on:
   workflow_dispatch:
     inputs:
+      folder_url:
+        description: 'Link folder Google Drive chứa audio.zip và content.txt'
+        required: true
       whisper_model:
         description: 'Model Whisper (tiny, small, medium, large)'
         required: true
@@ -30,14 +33,27 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📦 Checkout source code
-        uses: actions/checkout@v3
+      - name: 📥 Checkout source code
+        uses: actions/checkout@v4
 
-      - name: 📂 Giải nén file audio zip (chỉ lấy file từ ZIP)
+      - name: 🐍 Install Python & Google API packages
+        run: pip install google-auth google-api-python-client
+
+      - name: ⬇️ Download audio.zip & content.txt from Google Drive folder
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          FOLDER_URL: ${{ github.event.inputs.folder_url }}
+        run: |
+          mkdir -p input
+          python scripts/download_drive_folder_files.py
+
+      - name: 📂 Giải nén file audio.zip
         run: |
           rm -rf audio merged
           mkdir -p audio merged
-          unzip -o audio-uploads/audio-files.zip -d audio
+          unzip -o input/audio.zip -d audio
           echo "✅ Danh sách file .mp3 sau giải nén:"
           find audio -maxdepth 1 -type f -name "*.mp3" | sort -V > merged/sorted.txt
           cat merged/sorted.txt
@@ -64,7 +80,7 @@ jobs:
       - name: "🐢 Điều chỉnh tốc độ audio (speed: ${{ github.event.inputs.speed }})"
         run: |
           mkdir -p adjusted
-          ffmpeg -i merged/merged.mp3 -filter:a "atempo=${{ github.event.inputs.speed }}" -vn adjusted/adjusted.mp3
+          ffmpeg -i merged/merged.mp3 -filter:a "atempo=${{ github.event.inputs.speed }}" -vn adjusted/audio_adjusted.mp3
 
       - name: "✍️ Chuyển thành phụ đề SRT bằng Whisper ${{ github.event.inputs.whisper_model }} | ${{ github.event.inputs.language }} | ${{ github.event.inputs.max_words_per_line }} words/line | ${{ github.event.inputs.speed }}x"
         run: |
@@ -72,7 +88,7 @@ jobs:
           echo "🐢 Audio speed: ${{ github.event.inputs.speed }}"
           echo "🗣️ Language: ${{ github.event.inputs.language }}"
           echo "🧾 Max words/line: ${{ github.event.inputs.max_words_per_line }}"
-          whisper adjusted/adjusted.mp3 \
+          whisper adjusted/audio_adjusted.mp3 \
             --language ${{ github.event.inputs.language }} \
             --model ${{ github.event.inputs.whisper_model }} \
             --output_format srt \
@@ -80,15 +96,15 @@ jobs:
             --max_words_per_line ${{ github.event.inputs.max_words_per_line }} \
             --output_dir output
 
-      - name: 🏷️ Đổi tên file kết quả
+      - name: 🏷️ Đổi tên file đầu ra
         run: |
-          cp adjusted/adjusted.mp3 audio_adjusted_${{ github.event.inputs.speed }}x.mp3
-          cp output/adjusted.srt transcript_${{ github.event.inputs.whisper_model }}.srt
+          mv output/audio_adjusted.srt transcript.srt
 
-      - name: ⬆️ Upload file kết quả (.mp3 và .srt) có tên theo model và speed
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ github.event.inputs.whisper_model }}_${{ github.event.inputs.speed }}x_${{ github.event.inputs.language }}
-          path: |
-            audio_adjusted_${{ github.event.inputs.speed }}x.mp3
-            transcript_${{ github.event.inputs.whisper_model }}.srt
+      - name: ⬆️ Upload kết quả về Google Drive
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          FOLDER_URL: ${{ github.event.inputs.folder_url }}
+        run: |
+          python scripts/upload_results_to_drive.py audio_adjusted.mp3 transcript.srt

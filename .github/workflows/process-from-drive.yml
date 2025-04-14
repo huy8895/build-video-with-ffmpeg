@@ -1,0 +1,118 @@
+name: 📥 Process from Google Drive and Generate Slides + Video
+
+on:
+  workflow_dispatch:
+    inputs:
+      video_number:
+        description: "Video number"
+        required: true
+        default: "99"
+      folder_url:
+        description: "Google Drive folder URL"
+        required: true
+      dpi:
+        description: "DPI for slide PNGs (96=480p, 128=720p, 192=1080p)"
+        default: "192"
+      resolution:
+        description: "Video resolution"
+        default: "480p"
+      config_key:
+        description: "Slide config key"
+        default: "onyxShadowingEnglish"
+      upload_to_youtube:
+        description: "Upload video to YouTube?"
+        default: "false"
+
+jobs:
+  full-process:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🛠 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 📦 Install Node + Python dependencies
+        run: |
+          npm install fs-extra minimist compromise googleapis
+          pip install --upgrade google-api-python-client google-auth google-auth-oauthlib
+
+      - name: 📂 Download files from Google Drive folder
+        run: |
+          python scripts/download_drive_folder_files.py '${{ github.event.inputs.folder_url }}'
+          echo "✅ Files downloaded:"
+          ls -lh
+        shell: bash
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+
+
+      - name: 🧠 Generate slides-timing.json
+        run: |
+          node scripts/generate_timing_json_with_parser.js \
+            --srt subtitles.srt \
+            --content content.txt \
+            --maxChar 200 --minChar 100 --matchThreshold 90 --maxOffset 3
+
+      - name: 📜 Generate PPTX from timing
+        env:
+          CONFIG_KEY: ${{ github.event.inputs.config_key }}
+        run: node scripts/gen_slides.js
+
+      - name: 📄 Convert PPTX to PDF
+        run: |
+          mkdir -p slides_pdf
+          soffice --headless --convert-to pdf --outdir slides_pdf slides.pptx
+
+      - name: 🖼 Convert PDF to PNG
+        run: |
+          mkdir -p slides_png
+          pdftoppm -png -r ${{ github.event.inputs.dpi }} slides_pdf/slides.pdf slides_png/slide
+
+      - name: 📝 Generate input.txt
+        run: IMAGES_DIR=slides_png node scripts/build_input_list.js
+
+      - name: 🎬 Render video (if enabled)
+        run: |
+          case "${{ github.event.inputs.resolution }}" in
+            "720p")  SIZE="1280:720" ;;
+            "1080p") SIZE="1920:1080" ;;
+            *)       SIZE="854:480" ;;  # default 480p
+          esac
+          ffmpeg -y -f concat -safe 0 -i input.txt -i audio.mp3 \
+            -vf "scale=$SIZE,format=yuv420p" \
+            -c:v libx264 -preset slow -crf 18 \
+            -c:a aac -b:a 320k \
+            -shortest output.mp4
+
+      - name: "📩 Notify: Video render complete"
+        run: |
+          export MESSAGE="🎬 Video #${{ github.event.inputs.video_number }}: Render complete!"
+          node scripts/send_telegram_message.js
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - name: 🚀 Upload to YouTube (if enabled)
+        if: ${{ github.event.inputs.upload_to_youtube == 'true' && github.event.inputs.build_video == 'true' }}
+        env:
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+        run: python scripts/upload_youtube.py
+
+      - name: "📩 Notify: Upload to YouTube done"
+        if: ${{ github.event.inputs.upload_to_youtube == 'true' && github.event.inputs.build_video == 'true' }}
+        run: |
+          export MESSAGE="🚀 Video #${{ github.event.inputs.video_number }}: Uploaded to YouTube!"
+          node scripts/send_telegram_message.js
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+

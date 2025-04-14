@@ -1,23 +1,23 @@
-name: 🧪 Test Telegram Bot Notify
+name: 🔔 Simple Telegram Notify
 
 on:
   workflow_dispatch:
     inputs:
       video_number:
-        description: 'Số video để test message'
+        description: 'Số video để test'
         required: true
         default: '99'
       folder_url:
-        description: 'Link Google Drive folder để test'
+        description: 'Link folder Google Drive'
         required: true
-        default: 'https://drive.google.com/drive/u/0/folders/example-folder-id'
+        default: 'https://drive.google.com/drive/folders/example-id'
 
 jobs:
-  notify-telegram:
+  notify:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Checkout repo
+      - name: 🥡 Checkout repo
         uses: actions/checkout@v4
 
       - name: 🛠 Setup Node.js
@@ -25,15 +25,10 @@ jobs:
         with:
           node-version: 20
 
-      - name: 📣 Send Telegram notification
+      - name: 🚀 Send Telegram message (1 line only)
         run: |
-          node scripts/send_telegram_message.js <<EOF
-          🎉 Video #${{ github.event.inputs.video_number }} done!
-          📂 ${{ github.event.inputs.folder_url }}
-          EOF
-    env:
-      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-
-
-
+          export MESSAGE="🎉 Video #${{ github.event.inputs.video_number }} done! Link: ${{ github.event.inputs.folder_url }}"
+          node scripts/send_telegram_message.js
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}

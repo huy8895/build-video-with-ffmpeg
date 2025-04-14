@@ -1,0 +1,94 @@
+name: Merge, Adjust Speed, and Transcribe MP3
+
+on:
+  workflow_dispatch:
+    inputs:
+      whisper_model:
+        description: 'Model Whisper (tiny, small, medium, large)'
+        required: true
+        default: 'tiny'
+      video_number:
+        description: 'Số Thứ tự video (1, 2, 3, ...)'
+        required: true
+        default: '0'
+      speed:
+        description: 'Tốc độ điều chỉnh audio (ví dụ: 0.8, 1.0, 1.2)'
+        required: true
+        default: '0.8'
+      max_words_per_line:
+        description: 'Số từ tối đa mỗi dòng phụ đề (ví dụ: 1, 5, 8)'
+        required: true
+        default: '1'
+      language:
+        description: 'Ngôn ngữ của file audio (en, vi, es, etc.)'
+        required: true
+        default: 'en'
+
+jobs:
+  merge-adjust-transcribe:
+    name: "Video: #${{ github.event.inputs.video_number }} | 🎧 Whisper: ${{ github.event.inputs.whisper_model }} | 🐢 Speed: ${{ github.event.inputs.speed }} | 🌍 Language: ${{ github.event.inputs.language }}"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📦 Checkout source code
+        uses: actions/checkout@v3
+
+      - name: 📂 Giải nén file audio zip (chỉ lấy file từ ZIP)
+        run: |
+          rm -rf audio merged
+          mkdir -p audio merged
+          unzip -o audio-uploads/audio-files.zip -d audio
+          echo "✅ Danh sách file .mp3 sau giải nén:"
+          find audio -maxdepth 1 -type f -name "*.mp3" | sort -V > merged/sorted.txt
+          cat merged/sorted.txt
+
+      - name: 🛠️ Cài đặt ffmpeg và whisper
+        run: |
+          sudo apt update
+          sudo apt install -y ffmpeg
+          pip install --upgrade pip
+          pip install setuptools-rust
+          pip install openai-whisper
+
+      - name: 🔗 Nối tất cả file .mp3 theo thứ tự tên tăng dần
+        run: |
+          mkdir -p merged
+          ls audio/*.mp3 | sort -V > merged/sorted.txt
+          while read f; do
+            echo "file '$PWD/$f'" >> merged/list.txt
+          done < merged/sorted.txt
+          echo "📃 Danh sách merge:"
+          cat merged/list.txt
+          ffmpeg -f concat -safe 0 -i merged/list.txt -c copy merged/merged.mp3
+
+      - name: "🐢 Điều chỉnh tốc độ audio (speed: ${{ github.event.inputs.speed }})"
+        run: |
+          mkdir -p adjusted
+          ffmpeg -i merged/merged.mp3 -filter:a "atempo=${{ github.event.inputs.speed }}" -vn adjusted/adjusted.mp3
+
+      - name: "✍️ Chuyển thành phụ đề SRT bằng Whisper ${{ github.event.inputs.whisper_model }} | ${{ github.event.inputs.language }} | ${{ github.event.inputs.max_words_per_line }} words/line | ${{ github.event.inputs.speed }}x"
+        run: |
+          echo "🧠 Whisper model: ${{ github.event.inputs.whisper_model }}"
+          echo "🐢 Audio speed: ${{ github.event.inputs.speed }}"
+          echo "🗣️ Language: ${{ github.event.inputs.language }}"
+          echo "🧾 Max words/line: ${{ github.event.inputs.max_words_per_line }}"
+          whisper adjusted/adjusted.mp3 \
+            --language ${{ github.event.inputs.language }} \
+            --model ${{ github.event.inputs.whisper_model }} \
+            --output_format srt \
+            --word_timestamps True \
+            --max_words_per_line ${{ github.event.inputs.max_words_per_line }} \
+            --output_dir output
+
+      - name: 🏷️ Đổi tên file kết quả
+        run: |
+          cp adjusted/adjusted.mp3 audio_adjusted_${{ github.event.inputs.speed }}x.mp3
+          cp output/adjusted.srt transcript_${{ github.event.inputs.whisper_model }}.srt
+
+      - name: ⬆️ Upload file kết quả (.mp3 và .srt) có tên theo model và speed
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.inputs.whisper_model }}_${{ github.event.inputs.speed }}x_${{ github.event.inputs.language }}
+          path: |
+            audio_adjusted_${{ github.event.inputs.speed }}x.mp3
+            transcript_${{ github.event.inputs.whisper_model }}.srt

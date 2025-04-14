@@ -1,0 +1,15 @@
+{
+  "background": "assets/bg.jpg",
+  "textOptions": {
+    "x": 0.5,
+    "y": 0.5,
+    "w": 9,
+    "h": 4.5,
+    "fontSize": 38,
+    "color": "404040",
+    "fontFace": "Crimson Pro",
+    "align": "justify",
+    "valign": "top",
+    "wrap": true
+  }
+}

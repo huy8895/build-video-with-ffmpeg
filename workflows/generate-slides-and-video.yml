@@ -1,0 +1,150 @@
+name: Generate Slides and Build Video
+
+on:
+  workflow_dispatch:
+    inputs:
+      dpi:
+        description: >
+          DPI for PNG output.
+          Use 96 for 480p, 128 for 720p, 192 for 1080p. 
+          (Higher DPI = larger image size = sharper video)
+        required: false
+        default: "192"
+
+      resolution:
+        description: "Video resolution: 480p (default), 720p, 1080p"
+        required: false
+        default: "480p"
+
+      upload_to_youtube:
+        description: "Upload the video to YouTube after rendering?"
+        required: false
+        default: "false"
+      config_key:
+        description: "Which slide config to use (e.g. onyxShadowingEnglish)"
+        required: true
+        default: "onyxShadowingEnglish"
+
+      build_video:
+        description: "Whether to render video from the slides"
+        required: false
+        default: "true"
+
+
+
+jobs:
+  generate-slides-and-video:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 📦 Unzip input files (audio.mp3, timings.json, content.txt)
+        run: |
+          unzip -o input_data.zip
+          echo "✅ Unzipped input files:"
+          ls -lh
+
+      - name: 🛠️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 📦 Install Node dependencies
+        run: npm install pptxgenjs
+
+      - name: 🆕 Install Crimson Pro font
+        run: |
+          mkdir -p ~/.fonts
+          cp assets/fonts/*.ttf ~/.fonts/
+          fc-cache -f -v
+
+      - name: 🖼️ Install LibreOffice, PDF tools, and FFmpeg
+        if: ${{ github.event.inputs.build_video == 'true' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libreoffice poppler-utils ffmpeg
+
+      - name: 📜 Generate PPTX from timings.json
+        env:
+          CONFIG_KEY: ${{ github.event.inputs.config_key }}
+        run: node scripts/gen_slides.js
+
+      - name: 📄 Convert PPTX to PDF
+        run: |
+          mkdir -p slides_pdf
+          soffice --headless --convert-to pdf --outdir slides_pdf slides.pptx
+
+      - name: 🖼️ Convert PDF to high-res PNG using DPI=${{ inputs.dpi }}
+        run: |
+          mkdir -p slides_png
+          pdftoppm -png -r ${{ inputs.dpi }} slides_pdf/slides.pdf slides_png/slide
+
+      - name: 🗜️ Zip all PNG slides
+        run: zip -r slides_png.zip slides_png
+
+      - name: 📂 List workspace contents
+        run: |
+          echo "=== Workspace tree (max depth 2) ==="
+          find . -maxdepth 2 -type f
+
+      - name: 🖼️ Preview converted slide images
+        run: ls -lh slides_png | head
+
+      - name: 📝 Generate input.txt from timings.json
+        run: IMAGES_DIR=slides_png node scripts/build_input_list.js
+
+      - name: 📄 Show first 20 lines of input.txt
+        run: |
+          echo "=== Preview input.txt ==="
+          head -n 20 input.txt
+
+      - name: 🎬 Build video with FFmpeg
+        run: |
+          case "${{ github.event.inputs.resolution }}" in
+            "720p")  SIZE="1280:720" ;;
+            "1080p") SIZE="1920:1080" ;;
+            *)       SIZE="854:480" ;;   # default 480p
+          esac
+
+          echo "✅ Using resolution: $SIZE"
+
+          ffmpeg -y -f concat -safe 0 -i input.txt -i audio.mp3 \
+            -vf "scale=$SIZE,format=yuv420p" \
+            -c:v libx264 -preset slow -crf 18 \
+            -c:a aac -b:a 320k \
+            -shortest output.mp4
+
+      - name: 📏 Show video file size
+        run: du -h output.mp4
+
+      - name: "📤 Upload artifact: PPTX file"
+        uses: actions/upload-artifact@v4
+        with:
+          name: slides_pptx
+          path: slides.pptx
+
+      - name: "📤 Upload artifact: PNG zip"
+        uses: actions/upload-artifact@v4
+        with:
+          name: slides_images_zip
+          path: slides_png.zip
+
+      - name: "📤 Upload artifact: Rendered video"
+        uses: actions/upload-artifact@v4
+        with:
+          name: rendered-video
+          path: output.mp4
+
+      - name: 🐍 Install YouTube upload dependencies
+        run: pip install --upgrade google-api-python-client google-auth google-auth-oauthlib
+
+      - name: 🚀 Upload video to YouTube (unlisted)
+        if: ${{ github.event.inputs.upload_to_youtube == 'true' && github.event.inputs.build_video == 'true' }}
+        env:
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+        run: python scripts/upload_youtube.py
+

@@ -7,21 +7,42 @@ on:
         description: "Video number"
         required: true
         default: "99"
+
       folder_url:
         description: "Google Drive folder URL"
         required: true
+
       dpi:
         description: "DPI for slide PNGs (96=480p, 128=720p, 192=1080p)"
         default: "192"
+
       resolution:
         description: "Video resolution"
         default: "480p"
+
       config_key:
         description: "Slide config key"
         default: "onyxShadowingEnglish"
+
       upload_to_youtube:
         description: "Upload video to YouTube?"
         default: "false"
+
+      maxChar:
+        description: "Số ký tự tối đa mỗi slide"
+        default: "200"
+
+      minChar:
+        description: "Số ký tự tối thiểu mỗi slide"
+        default: "100"
+
+      matchThreshold:
+        description: "Tỷ lệ khớp tối thiểu (%)"
+        default: "90"
+
+      maxOffset:
+        description: "Số từ lệch tối đa khi so khớp"
+        default: "3"
 
 jobs:
   full-process:
@@ -51,17 +72,20 @@ jobs:
           python scripts/download_drive_folder_files.py transcript.srt content.txt audio.mp3
           echo "✅ Files downloaded:"
           ls -lh input/
-          echo "✅ File list:"
-          # ✅ Copy để không cần sửa các bước khác
+          echo "✅ Copying files to root for compatibility..."
           cp input/*.mp3 . || true
           cp input/*.srt . || true
           cp input/*.txt . || true
+
       - name: 🧠 Generate slides-timing.json
         run: |
           node scripts/generate_timing_json_with_parser.js \
             --srt transcript.srt \
             --content content.txt \
-            --maxChar 200 --minChar 100 --matchThreshold 90 --maxOffset 3
+            --maxChar ${{ github.event.inputs.maxChar }} \
+            --minChar ${{ github.event.inputs.minChar }} \
+            --matchThreshold ${{ github.event.inputs.matchThreshold }} \
+            --maxOffset ${{ github.event.inputs.maxOffset }}
 
       - name: 📜 Generate PPTX from timing
         env:
@@ -86,7 +110,7 @@ jobs:
           case "${{ github.event.inputs.resolution }}" in
             "720p")  SIZE="1280:720" ;;
             "1080p") SIZE="1920:1080" ;;
-            *)       SIZE="854:480" ;;  # default 480p
+            *)       SIZE="854:480" ;;
           esac
           ffmpeg -y -f concat -safe 0 -i input.txt -i audio.mp3 \
             -vf "scale=$SIZE,format=yuv420p" \
@@ -118,7 +142,7 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-      
+
       - name: "📩 Send Telegram message with YouTube link (if available)"
         if: ${{ github.event.inputs.upload_to_youtube == 'true' && github.event.inputs.build_video == 'true' }}
         run: |
@@ -128,4 +152,3 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-

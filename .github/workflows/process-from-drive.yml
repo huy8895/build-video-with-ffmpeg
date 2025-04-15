@@ -99,10 +99,6 @@ jobs:
         env:
           CONFIG_KEY: ${{ github.event.inputs.config_key }}
         run: node scripts/gen_slides.js
-      - name: 📜 Generate PPTX from timing
-        env:
-          CONFIG_KEY: ${{ github.event.inputs.config_key }}
-        run: node scripts/gen_slides.js
 
       - name: 📄 Convert PPTX to PDF
         run: |

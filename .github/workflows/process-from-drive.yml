@@ -57,7 +57,7 @@ jobs:
       - name: 🧠 Generate slides-timing.json
         run: |
           node scripts/generate_timing_json_with_parser.js \
-            --srt subtitles.srt \
+            --srt transcript.srt \
             --content content.txt \
             --maxChar 200 --minChar 100 --matchThreshold 90 --maxOffset 3
 

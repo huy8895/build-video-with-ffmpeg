@@ -86,7 +86,10 @@ jobs:
             --minChar ${{ github.event.inputs.minChar }} \
             --matchThreshold ${{ github.event.inputs.matchThreshold }} \
             --maxOffset ${{ github.event.inputs.maxOffset }}
-
+      
+      - name: 🧾 Rename slides-timing.json to timings.json
+        run: mv slides-timing.json timings.json
+        
       - name: 📜 Generate PPTX from timing
         env:
           CONFIG_KEY: ${{ github.event.inputs.config_key }}

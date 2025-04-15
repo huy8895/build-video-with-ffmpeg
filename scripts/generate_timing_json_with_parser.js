@@ -57,9 +57,8 @@ function normalizeText(text) {
 
     // Loại bỏ dấu câu và thay thế từ số bằng số
     const filteredWords = words
-        .map(word => word.replace(/[^\w\s]/g, '').trim())  // Loại bỏ dấu câu
-        .filter(word => /^[a-zA-Z]+$/.test(word) || /^\d+$/.test(word))  // Chỉ giữ các từ hoặc số
-        .map(word => numberWords[word] || word);  // Thay thế từ số bằng số
+        .map(word => word.replace(/[^\w\s]/g, '').trim())
+        .map(word => numberWords[word] || word);
 
     // Ghép các từ lại thành chuỗi
     return filteredWords.join(' ').trim();
@@ -230,7 +229,7 @@ function generateTimings(srtData, slides, matchThreshold, maxOffset) {
         let endIndex = null; // Vị trí kết thúc của SRT khớp với slide
 
         // Kiểm tra xem nội dung SRT có nằm trong slide không
-        let slideSplit = normalizedSlide.split(' ');
+        let slideSplit = normalizedSlide.split(' ').filter(word => word.trim() !== '');
         console.debug('slideSplit: ', slideSplit);
 
         // tạo 1 mảng để lưu các từ trong slide tương ứng trong file srt
@@ -306,7 +305,6 @@ function generateTimings(srtData, slides, matchThreshold, maxOffset) {
             endIndex = srtIndex + arraySrtSplit.length - 1;
         } else {
             console.error('not equalWithPercentage: ',equalWithPercentage);
-            alert('not equalWithPercentage: ' +equalWithPercentage);
             throw Error('not equalWithPercentage');
         }
 

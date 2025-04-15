@@ -107,9 +107,9 @@ jobs:
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
 
-      - name: 📣 Notify Telegram
+      - name: 🚀 Send Telegram message
         run: |
-          MESSAGE="🎉 Video #${{ github.event.inputs.video_number }} done: Adjusted speed & transcript completed! 📂 Google Drive folder: ${{ github.event.inputs.folder_url }}"
+          export MESSAGE="Video: #${{ github.event.inputs.video_number }} | 🎧 Whisper: ${{ github.event.inputs.whisper_model }} | 🐢 Speed: ${{ github.event.inputs.speed }} | 🌍 Language: ${{ github.event.inputs.language }} done! Link: ${{ github.event.inputs.folder_url }}"
           node scripts/send_telegram_message.js
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}

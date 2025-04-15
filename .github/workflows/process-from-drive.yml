@@ -59,7 +59,7 @@ jobs:
 
       - name: 📦 Install Node + Python dependencies
         run: |
-          npm install fs-extra minimist compromise googleapis
+          npm install pptxgenjs fs-extra minimist compromise googleapis
           pip install --upgrade google-api-python-client google-auth google-auth-oauthlib
 
       - name: 📂 Download files from Google Drive folder

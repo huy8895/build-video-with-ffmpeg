@@ -90,6 +90,11 @@ jobs:
       - name: 🧾 Rename slides-timing.json to timings.json
         run: mv slides-timing.json timings.json
       
+      - name: 🆕 Install Crimson Pro font
+        run: |
+          mkdir -p ~/.fonts
+          cp assets/fonts/*.ttf ~/.fonts/
+          fc-cache -f -v
       - name: 🛠 Install slide & video dependencies
         run: |
           sudo apt-get update

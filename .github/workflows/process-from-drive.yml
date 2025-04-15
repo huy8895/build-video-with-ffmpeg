@@ -43,11 +43,12 @@ jobs:
 
       - name: 📂 Download files from Google Drive folder
         run: |
-          python scripts/download_drive_folder_files.py '${{ github.event.inputs.folder_url }}'
+          python scripts/download_drive_folder_files.py
           echo "✅ Files downloaded:"
           ls -lh
         shell: bash
         env:
+          FOLDER_URL: ${{ github.event.inputs.folder_url }}
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}

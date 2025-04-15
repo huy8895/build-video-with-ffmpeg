@@ -106,8 +106,17 @@ jobs:
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
           FOLDER_URL: ${{ github.event.inputs.folder_url }}
+          
+      - name: ☁️ Upload audio + srt
         run: |
-          python scripts/upload_results_to_drive.py audio_adjusted.mp3 transcript.srt
+          export FOLDER_URL="${{ github.event.inputs.folder_url }}"
+          export UPLOAD_FILES="audio_adjusted.mp3 transcript.srt"
+          python scripts/upload_results_to_drive.py
+        env:
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+
       - name: 📣 Notify Telegram
         run: |
           MESSAGE="🎉 Video #${{ github.event.inputs.video_number }} done: Adjusted speed & transcript completed!\n📂 Google Drive folder: ${{ github.event.inputs.folder_url }}" \

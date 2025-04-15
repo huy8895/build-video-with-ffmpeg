@@ -148,7 +148,7 @@ jobs:
           export UPLOAD_FILES="output.mp4"
           python scripts/upload_results_to_drive.py
         
-      - name: 📩 Notify: Upload done (with Google Drive link)
+      - name: "📩 Notify: Upload done (with Google Drive link)"
         run: |
           export MESSAGE="🎉 Video #${{ github.event.inputs.video_number }} đã được xử lý và upload! 📂 Folder: ${{ github.event.inputs.folder_url }}"
           node scripts/send_telegram_message.js

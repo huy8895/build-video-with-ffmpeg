@@ -104,6 +104,11 @@ jobs:
         run: |
           mkdir -p slides_pdf
           soffice --headless --convert-to pdf --outdir slides_pdf slides.pptx
+      
+      - name: 🛠 Install Poppler (for PDF to PNG)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
 
       - name: 🖼 Convert PDF to PNG
         run: |

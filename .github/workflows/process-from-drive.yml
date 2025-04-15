@@ -42,18 +42,20 @@ jobs:
           pip install --upgrade google-api-python-client google-auth google-auth-oauthlib
 
       - name: 📂 Download files from Google Drive folder
-        run: |
-          python scripts/download_drive_folder_files.py
-          echo "✅ Files downloaded:"
-          ls -lh
-        shell: bash
         env:
           FOLDER_URL: ${{ github.event.inputs.folder_url }}
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
-
-
+        run: |
+          python scripts/download_drive_folder_files.py transcript.srt content.txt audio.mp3
+          echo "✅ Files downloaded:"
+          ls -lh input/
+          echo "✅ File list:"
+          # ✅ Copy để không cần sửa các bước khác
+          cp input/*.mp3 . || true
+          cp input/*.srt . || true
+          cp input/*.txt . || true
       - name: 🧠 Generate slides-timing.json
         run: |
           node scripts/generate_timing_json_with_parser.js \

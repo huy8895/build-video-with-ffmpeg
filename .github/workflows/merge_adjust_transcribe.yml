@@ -46,9 +46,11 @@ jobs:
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
           FOLDER_URL: ${{ github.event.inputs.folder_url }}
         run: |
-          mkdir -p input
-          python scripts/download_drive_folder_files.py
-
+          python scripts/download_drive_folder_files.py audio.zip content.txt
+      
+      - name: 📁 Kiểm tra file tải về
+        run: ls -lh input/
+        
       - name: 📂 Giải nén file audio.zip
         run: |
           rm -rf audio merged

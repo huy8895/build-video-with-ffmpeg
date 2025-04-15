@@ -1,16 +1,21 @@
 import os
 import io
 import re
+import sys
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 
 # ✅ Tạo thư mục input nếu chưa có
-if os.path.exists("input"):
-    print("✅ Thư mục input đã tồn tại.")
 os.makedirs("input", exist_ok=True)
 
-# Trích folder_id từ URL
+# 🧾 Lấy danh sách file cần tải từ dòng lệnh
+requested_files = set(sys.argv[1:])  # Ví dụ: audio.zip content.txt
+if not requested_files:
+    print("⚠️ Không có file nào được yêu cầu tải. Kết thúc script.")
+    exit(0)
+
+# 🔗 Lấy folder_id từ URL
 folder_url = os.environ["FOLDER_URL"]
 match = re.search(r"/folders/([a-zA-Z0-9_-]+)", folder_url)
 if not match:
@@ -19,7 +24,7 @@ if not match:
 folder_id = match.group(1)
 print(f"📂 Folder ID: {folder_id}")
 
-# Xác thực
+# 🔐 Xác thực
 creds = Credentials(
     None,
     refresh_token=os.environ["YT_REFRESH_TOKEN"],
@@ -27,10 +32,9 @@ creds = Credentials(
     client_id=os.environ["YT_CLIENT_ID"],
     client_secret=os.environ["YT_CLIENT_SECRET"]
 )
-
 drive = build("drive", "v3", credentials=creds)
 
-# Tìm file trong folder
+# 🔍 Lấy danh sách file trong folder
 query = f"'{folder_id}' in parents and trashed = false"
 results = drive.files().list(q=query, fields="files(id, name)").execute()
 items = results.get("files", [])
@@ -39,11 +43,14 @@ if not items:
     print("❌ Không có file nào trong folder.")
     exit(1)
 
+# ⬇️ Tải các file được yêu cầu
 for file in items:
     file_id = file["id"]
     file_name = file["name"]
-    if file_name not in ["audio.zip", "content.txt"]:
+
+    if file_name not in requested_files:
         continue
+
     print(f"⬇️ Đang tải: {file_name}")
     request = drive.files().get_media(fileId=file_id)
     fh = io.FileIO(os.path.join("input", file_name), "wb")

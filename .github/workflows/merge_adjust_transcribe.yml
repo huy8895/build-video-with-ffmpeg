@@ -84,10 +84,6 @@ jobs:
 
       - name: "✍️ Chuyển thành phụ đề SRT bằng Whisper ${{ github.event.inputs.whisper_model }} | ${{ github.event.inputs.language }} | ${{ github.event.inputs.max_words_per_line }} words/line | ${{ github.event.inputs.speed }}x"
         run: |
-          echo "🧠 Whisper model: ${{ github.event.inputs.whisper_model }}"
-          echo "🐢 Audio speed: ${{ github.event.inputs.speed }}"
-          echo "🗣️ Language: ${{ github.event.inputs.language }}"
-          echo "🧾 Max words/line: ${{ github.event.inputs.max_words_per_line }}"
           whisper adjusted/audio_adjusted.mp3 \
             --language ${{ github.event.inputs.language }} \
             --model ${{ github.event.inputs.whisper_model }} \
@@ -100,14 +96,8 @@ jobs:
         run: |
           mv output/audio_adjusted.srt transcript.srt
           cp adjusted/audio_adjusted.mp3 audio_adjusted.mp3
-      - name: ⬆️ Upload kết quả về Google Drive
-        env:
-          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
-          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
-          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
-          FOLDER_URL: ${{ github.event.inputs.folder_url }}
-          
-      - name: ☁️ Upload audio + srt
+
+      - name: ☁️ Upload audio + srt to Google Drive
         run: |
           export FOLDER_URL="${{ github.event.inputs.folder_url }}"
           export UPLOAD_FILES="audio_adjusted.mp3 transcript.srt"
@@ -119,7 +109,7 @@ jobs:
 
       - name: 📣 Notify Telegram
         run: |
-          MESSAGE="🎉 Video #${{ github.event.inputs.video_number }} done: Adjusted speed & transcript completed!\n📂 Google Drive folder: ${{ github.event.inputs.folder_url }}" \
+          MESSAGE="🎉 Video #${{ github.event.inputs.video_number }} done: Adjusted speed & transcript completed! 📂 Google Drive folder: ${{ github.event.inputs.folder_url }}"
           node scripts/send_telegram_message.js
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}

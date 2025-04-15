@@ -129,9 +129,28 @@ jobs:
             -c:a aac -b:a 320k \
             -shortest output.mp4
 
+
       - name: "📩 Notify: Video render complete"
         run: |
           export MESSAGE="🎬 Video #${{ github.event.inputs.video_number }}: Render complete!"
+          node scripts/send_telegram_message.js
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      
+      - name: ☁️ Upload results to Google Drive
+        env:
+          FOLDER_URL: ${{ github.event.inputs.folder_url }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+        run: |
+          export UPLOAD_FILES="output.mp4"
+          python scripts/upload_results_to_drive.py
+        
+      - name: 📩 Notify: Upload done (with Google Drive link)
+        run: |
+          export MESSAGE="🎉 Video #${{ github.event.inputs.video_number }} đã được xử lý và upload! 📂 Folder: ${{ github.event.inputs.folder_url }}"
           node scripts/send_telegram_message.js
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}

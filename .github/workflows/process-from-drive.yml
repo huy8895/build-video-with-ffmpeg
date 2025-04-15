@@ -69,7 +69,7 @@ jobs:
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
         run: |
-          python scripts/download_drive_folder_files.py transcript.srt content.txt audio.mp3
+          python scripts/download_drive_folder_files.py transcript.srt content.txt audio_adjusted.mp3
           echo "✅ Files downloaded:"
           ls -lh input/
           echo "✅ Copying files to root for compatibility..."
@@ -123,7 +123,7 @@ jobs:
             "1080p") SIZE="1920:1080" ;;
             *)       SIZE="854:480" ;;
           esac
-          ffmpeg -y -f concat -safe 0 -i input.txt -i audio.mp3 \
+          ffmpeg -y -f concat -safe 0 -i input.txt -i audio_adjusted.mp3 \
             -vf "scale=$SIZE,format=yuv420p" \
             -c:v libx264 -preset slow -crf 18 \
             -c:a aac -b:a 320k \

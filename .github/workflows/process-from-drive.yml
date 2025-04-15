@@ -115,4 +115,14 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      
+      - name: "📩 Send Telegram message with YouTube link (if available)"
+        if: ${{ github.event.inputs.upload_to_youtube == 'true' && github.event.inputs.build_video == 'true' }}
+        run: |
+          YT_LINK=$(cat yt_link.txt)
+          export MESSAGE="🎉 Video #${{ github.event.inputs.video_number }} đã được upload!\n📺 Xem tại: $YT_LINK"
+          node scripts/send_telegram_message.js
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 

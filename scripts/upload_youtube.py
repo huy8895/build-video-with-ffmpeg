@@ -35,5 +35,12 @@ response = youtube.videos().insert(
     media_body=media
 ).execute()
 
+video_id = response["id"]
+youtube_url = f"https://youtu.be/{video_id}"
+
 print("✅ Upload successful!")
-print("📺 Watch your video at: https://youtu.be/" + response["id"])
+print("📺 Watch your video at:", youtube_url)
+
+# Ghi URL vào file để các bước sau sử dụng
+with open("yt_link.txt", "w") as f:
+    f.write(youtube_url + "\n")

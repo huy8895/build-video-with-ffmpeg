@@ -90,10 +90,13 @@ jobs:
       - name: 🧾 Rename slides-timing.json to timings.json
         run: mv slides-timing.json timings.json
       
-      - name: 🛠 Install LibreOffice (for PPTX to PDF)
+      - name: 🛠 Install slide & video dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libreoffice
+          sudo apt-get install -y \
+            libreoffice \
+            poppler-utils \
+            ffmpeg
       
       - name: 📜 Generate PPTX from timing
         env:
@@ -104,11 +107,6 @@ jobs:
         run: |
           mkdir -p slides_pdf
           soffice --headless --convert-to pdf --outdir slides_pdf slides.pptx
-      
-      - name: 🛠 Install Poppler (for PDF to PNG)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y poppler-utils
 
       - name: 🖼 Convert PDF to PNG
         run: |

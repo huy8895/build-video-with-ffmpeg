@@ -5,6 +5,11 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 
+# ✅ Tạo thư mục input nếu chưa có
+if os.path.exists("input"):
+    print("✅ Thư mục input đã tồn tại.")
+os.makedirs("input", exist_ok=True)
+
 # Trích folder_id từ URL
 folder_url = os.environ["FOLDER_URL"]
 match = re.search(r"/folders/([a-zA-Z0-9_-]+)", folder_url)

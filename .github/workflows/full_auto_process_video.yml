@@ -1,0 +1,49 @@
+name: 🔄 Auto Full Video Processing
+
+on:
+  workflow_dispatch:
+    inputs:
+      folder_url:
+        description: 'Google Drive folder containing audio.zip and content.txt'
+        required: true
+      video_number:
+        description: 'Video number'
+        required: true
+      whisper_model:
+        default: 'small'
+      speed:
+        default: '0.8'
+      max_words_per_line:
+        default: '1'
+      language:
+        default: 'en'
+      dpi:
+        default: '192'
+      resolution:
+        default: '1080p'
+      config_key:
+        default: 'onyxShadowingEnglish'
+      upload_to_youtube:
+        default: 'false'
+
+jobs:
+  merge_transcribe:
+    uses: ./.github/workflows/merge_adjust_transcribe.yml
+    with:
+      folder_url: ${{ github.event.inputs.folder_url }}
+      video_number: ${{ github.event.inputs.video_number }}
+      whisper_model: ${{ github.event.inputs.whisper_model }}
+      speed: ${{ github.event.inputs.speed }}
+      max_words_per_line: ${{ github.event.inputs.max_words_per_line }}
+      language: ${{ github.event.inputs.language }}
+
+  generate_slides_video:
+    needs: merge_transcribe
+    uses: ./.github/workflows/process-from-drive.yml
+    with:
+      folder_url: ${{ github.event.inputs.folder_url }}
+      video_number: ${{ github.event.inputs.video_number }}
+      dpi: ${{ github.event.inputs.dpi }}
+      resolution: ${{ github.event.inputs.resolution }}
+      config_key: ${{ github.event.inputs.config_key }}
+      upload_to_youtube: ${{ github.event.inputs.upload_to_youtube }}

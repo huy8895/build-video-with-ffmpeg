@@ -1,6 +1,27 @@
 name: Merge, Adjust Speed, and Transcribe MP3
 
 on:
+  workflow_call:
+    inputs:
+      folder_url:
+        required: true
+        type: string
+      whisper_model:
+        required: true
+        type: string
+      video_number:
+        required: true
+        type: string
+      speed:
+        required: true
+        type: string
+      max_words_per_line:
+        required: true
+        type: string
+      language:
+        required: true
+        type: string
+
   workflow_dispatch:
     inputs:
       folder_url:

@@ -1,6 +1,26 @@
 name: 📥 Process from Google Drive and Generate Slides + Video
 
 on:
+  workflow_call:
+    inputs:
+      folder_url:
+        required: true
+        type: string
+      video_number:
+        required: true
+        type: string
+      dpi:
+        type: string
+        default: "192"
+      resolution:
+        type: string
+        default: "480p"
+      config_key:
+        type: string
+        default: "onyxShadowingEnglish"
+      upload_to_youtube:
+        type: string
+        default: "false"
   workflow_dispatch:
     inputs:
       video_number:

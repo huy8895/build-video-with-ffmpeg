@@ -1,4 +1,4 @@
-name: 🔄 Auto Full Video Processing
+name: ✅Auto Full Video Processing
 
 on:
   workflow_dispatch:

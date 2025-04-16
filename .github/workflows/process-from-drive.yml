@@ -21,6 +21,17 @@ on:
       upload_to_youtube:
         type: string
         default: "false"
+    secrets:
+      YT_CLIENT_ID:
+        required: true
+      YT_CLIENT_SECRET:
+        required: true
+      YT_REFRESH_TOKEN:
+        required: true
+      TELEGRAM_BOT_TOKEN:
+        required: false
+      TELEGRAM_CHAT_ID:
+        required: false
   workflow_dispatch:
     inputs:
       video_number:
@@ -63,7 +74,6 @@ on:
       maxOffset:
         description: "Số từ lệch tối đa khi so khớp"
         default: "3"
-
 jobs:
   full-process:
     runs-on: ubuntu-latest

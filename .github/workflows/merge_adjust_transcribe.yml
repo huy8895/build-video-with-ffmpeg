@@ -21,6 +21,18 @@ on:
       language:
         required: true
         type: string
+    secrets:
+      YT_CLIENT_ID:
+        required: true
+      YT_CLIENT_SECRET:
+        required: true
+      YT_REFRESH_TOKEN:
+        required: true
+      TELEGRAM_BOT_TOKEN:
+        required: false
+      TELEGRAM_CHAT_ID:
+        required: false
+
 
   workflow_dispatch:
     inputs:

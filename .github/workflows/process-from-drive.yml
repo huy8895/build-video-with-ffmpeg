@@ -69,7 +69,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Checkout repository
+      - name: "Video #${{ github.event.inputs.video_number }} | folder_url: ${{ github.event.inputs.folder_url }} | dpi: ${{ github.event.inputs.dpi }} | resolution: ${{ github.event.inputs.resolution }} | config_key: ${{ github.event.inputs.config_key }} | upload_to_youtube: ${{ github.event.inputs.upload_to_youtube }}"
         uses: actions/checkout@v4
 
       - name: 🛠 Setup Node.js

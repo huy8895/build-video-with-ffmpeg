@@ -1,4 +1,4 @@
-name: Merge, Adjust Speed, and Transcribe MP3
+name: 🎧 Merge, Adjust Speed, and Transcribe MP3
 
 on:
   workflow_call:

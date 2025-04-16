@@ -36,6 +36,13 @@ jobs:
       speed: ${{ github.event.inputs.speed }}
       max_words_per_line: ${{ github.event.inputs.max_words_per_line }}
       language: ${{ github.event.inputs.language }}
+    secrets:
+      YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+      YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+      YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
 
   generate_slides_video:
     needs: merge_transcribe
@@ -47,3 +54,10 @@ jobs:
       resolution: ${{ github.event.inputs.resolution }}
       config_key: ${{ github.event.inputs.config_key }}
       upload_to_youtube: ${{ github.event.inputs.upload_to_youtube }}
+    secrets:
+      YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+      YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+      YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+

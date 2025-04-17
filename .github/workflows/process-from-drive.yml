@@ -3,39 +3,55 @@ name: 📥 Process from Google Drive and Generate Slides + Video
 on:
   workflow_call:
     inputs:
-      folder_url:
-        required: true
-        type: string
       video_number:
+        description: "Video number"
         required: true
         type: string
+        default: "99"
+
+      folder_url:
+        description: "Google Drive folder URL"
+        type: string
+        required: true
+
       dpi:
+        description: "DPI for slide PNGs (96=480p, 128=720p, 192=1080p)"
         type: string
         default: "192"
+
       resolution:
+        description: "Video resolution"
         type: string
         default: "480p"
+
       config_key:
+        description: "Slide config key"
         type: string
         default: "onyxShadowingEnglish"
+
       upload_to_youtube:
+        description: "Upload video to YouTube?"
         type: string
         default: "false"
+
       maxChar:
         description: "Số ký tự tối đa mỗi slide"
         type: string
         default: "200"
+
       minChar:
         description: "Số ký tự tối thiểu mỗi slide"
         type: string
         default: "100"
+
       matchThreshold:
         description: "Tỷ lệ khớp tối thiểu (%)"
-        type: number
+        type: string
         default: "90"
+
       maxOffset:
         description: "Số từ lệch tối đa khi so khớp"
-        type: number
+        type: string
         default: "3"
     secrets:
       YT_CLIENT_ID:

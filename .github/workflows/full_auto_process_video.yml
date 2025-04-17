@@ -53,10 +53,6 @@ on:
         required: true
         description: "Tỷ lệ khớp tối thiểu (%)"
         default: "90"
-      maxOffset:
-        required: true
-        description: "Số từ lệch tối đa khi so khớp"
-        default: "3"
 jobs:
   merge_transcribe:
     uses: ./.github/workflows/merge_adjust_transcribe.yml

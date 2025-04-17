@@ -21,6 +21,22 @@ on:
       upload_to_youtube:
         type: string
         default: "false"
+      maxChar:
+        description: "Số ký tự tối đa mỗi slide"
+        type: string
+        default: "200"
+      minChar:
+        description: "Số ký tự tối thiểu mỗi slide"
+        type: string
+        default: "100"
+      matchThreshold:
+        description: "Tỷ lệ khớp tối thiểu (%)"
+        type: number
+        default: "90"
+      maxOffset:
+        description: "Số từ lệch tối đa khi so khớp"
+        type: number
+        default: "3"
     secrets:
       YT_CLIENT_ID:
         required: true

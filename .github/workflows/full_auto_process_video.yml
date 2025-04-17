@@ -9,7 +9,7 @@ on:
       whisper_model:
         description: 'Model Whisper (tiny, small, medium, large)'
         required: true
-        default: 'tiny'
+        default: 'small'
       video_number:
         description: 'Số Thứ tự video (1, 2, 3, ...)'
         required: true
@@ -24,47 +24,46 @@ on:
         default: '1'
       language:
         description: 'Ngôn ngữ của file audio (en, vi, es, etc.)'
-        required: true
         default: 'en'
 
       dpi:
         description: "DPI for slide PNGs (96=480p, 128=720p, 192=1080p)"
-        type: string
+        required: true
         default: "192"
 
       resolution:
-        description: "Video resolution"
-        type: string
-        default: "480p"
+        description:
+        required: true
+        default: "1080p"
 
       config_key:
         description: "Slide config key"
-        type: string
+        required: true
         default: "onyxShadowingEnglish"
 
       upload_to_youtube:
+        required: true
         description: "Upload video to YouTube?"
-        type: string
         default: "false"
 
       maxChar:
+        required: true
         description: "Số ký tự tối đa mỗi slide"
-        type: string
         default: "200"
 
       minChar:
+        required: true
         description: "Số ký tự tối thiểu mỗi slide"
-        type: string
         default: "100"
 
       matchThreshold:
+        required: true
         description: "Tỷ lệ khớp tối thiểu (%)"
-        type: string
         default: "90"
 
       maxOffset:
+        required: true
         description: "Số từ lệch tối đa khi so khớp"
-        type: string
         default: "3"
 
 

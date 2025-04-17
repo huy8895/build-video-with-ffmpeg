@@ -27,16 +27,16 @@ on:
         default: 'false'
       maxChar:
         description: 'Maximum characters per slide'
-        default: '42'
+        default: '200'
       minChar:
         description: 'Minimum characters per slide'
-        default: '8'
+        default: '100'
       matchThreshold:
         description: 'Threshold for sentence matching'
-        default: '0.6'
+        default: '90'
       maxOffset:
         description: 'Max word offset for alignment'
-        default: '2'
+        default: '3'
 
 
 jobs:

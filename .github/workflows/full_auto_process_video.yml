@@ -25,6 +25,19 @@ on:
         default: 'onyxShadowingEnglish'
       upload_to_youtube:
         default: 'false'
+      maxChar:
+        description: 'Maximum characters per slide'
+        default: '42'
+      minChar:
+        description: 'Minimum characters per slide'
+        default: '8'
+      matchThreshold:
+        description: 'Threshold for sentence matching'
+        default: '0.6'
+      maxOffset:
+        description: 'Max word offset for alignment'
+        default: '2'
+
 
 jobs:
   merge_transcribe:

@@ -25,49 +25,38 @@ on:
       language:
         description: 'Ngôn ngữ của file audio (en, vi, es, etc.)'
         default: 'en'
-
       dpi:
         description: "DPI for slide PNGs (96=480p, 128=720p, 192=1080p)"
         required: true
         default: "192"
-
       resolution:
-        description:
         required: true
+        description: "Video resolution: 480p (default), 720p, 1080p"
         default: "1080p"
-
       config_key:
         description: "Slide config key"
         required: true
         default: "onyxShadowingEnglish"
-
       upload_to_youtube:
         required: true
         description: "Upload video to YouTube?"
         default: "false"
-
       maxChar:
         required: true
         description: "Số ký tự tối đa mỗi slide"
         default: "200"
-
       minChar:
         required: true
         description: "Số ký tự tối thiểu mỗi slide"
         default: "100"
-
       matchThreshold:
         required: true
         description: "Tỷ lệ khớp tối thiểu (%)"
         default: "90"
-
       maxOffset:
         required: true
         description: "Số từ lệch tối đa khi so khớp"
         default: "3"
-
-
-
 jobs:
   merge_transcribe:
     uses: ./.github/workflows/merge_adjust_transcribe.yml

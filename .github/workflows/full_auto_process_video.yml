@@ -4,28 +4,28 @@ on:
   workflow_dispatch:
     inputs:
       folder_url:
-        description: 'Google Drive folder containing audio.zip and content.txt'
-        required: true
-      video_number:
-        description: 'Video number'
+        description: 'Link folder Google Drive chứa audio.zip và content.txt'
         required: true
       whisper_model:
-        description: 'Whisper model to use (e.g., tiny, base, small, medium, large)'
-        default: 'small'
+        description: 'Model Whisper (tiny, small, medium, large)'
+        required: true
+        default: 'tiny'
+      video_number:
+        description: 'Số Thứ tự video (1, 2, 3, ...)'
+        required: true
+        default: '0'
       speed:
+        description: 'Tốc độ điều chỉnh audio (ví dụ: 0.8, 1.0, 1.2)'
+        required: true
         default: '0.8'
       max_words_per_line:
+        description: 'Số từ tối đa mỗi dòng phụ đề (ví dụ: 1, 5, 8)'
+        required: true
         default: '1'
       language:
+        description: 'Ngôn ngữ của file audio (en, vi, es, etc.)'
+        required: true
         default: 'en'
-      dpi:
-        default: '192'
-      resolution:
-        default: '1080p'
-      config_key:
-        default: 'onyxShadowingEnglish'
-      upload_to_youtube:
-        default: 'false'
       maxChar:
         description: "Số ký tự tối đa mỗi slide"
         type: number

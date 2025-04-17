@@ -10,6 +10,7 @@ on:
         description: 'Video number'
         required: true
       whisper_model:
+        description: 'Whisper model to use (e.g., tiny, base, small, medium, large)'
         default: 'small'
       speed:
         default: '0.8'

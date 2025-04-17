@@ -14,6 +14,18 @@ on:
         default: 'small'
       speed:
         default: '0.8'
+      max_words_per_line:
+        default: '1'
+      language:
+        default: 'en'
+      dpi:
+        default: '192'
+      resolution:
+        default: '1080p'
+      config_key:
+        default: 'onyxShadowingEnglish'
+      upload_to_youtube:
+        default: 'false'
       maxChar:
         description: "Số ký tự tối đa mỗi slide"
         type: number

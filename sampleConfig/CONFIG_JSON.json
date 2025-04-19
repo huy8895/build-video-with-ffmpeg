@@ -6,6 +6,7 @@
   "dpi": "192",
   "resolution": "1080p",
   "config_key": "onyxShadowingEnglish",
+  "upload_video_to_drive": "false",
   "upload_to_youtube": "true",
   "maxChar": "200",
   "minChar": "100",

@@ -1,4 +1,4 @@
-name: 📅 Process from Google Drive and Generate Slides + Video
+name: 🎞 Process from Google Drive and Generate Slides + Video and Upload to YouTube
 
 on:
   workflow_call:
@@ -49,6 +49,10 @@ jobs:
       YOUTUBE_META_JSON: ${{ vars.YOUTUBE_META_JSON }}
 
     steps:
+      - name: "📩 Notify: Start processing video"
+        run: |
+          export MESSAGE="🎬 Video #$VIDEO_NUMBER: Start 🎞 Process from Google Drive and Generate Slides + Video and Upload to YouTube !"
+          node scripts/send_telegram_message.js
       - name: 📅 Checkout source code
         uses: actions/checkout@v4
 
@@ -66,6 +70,7 @@ jobs:
           echo "RESOLUTION=$(jq -r '.resolution' config.json)" >> $GITHUB_ENV
           echo "CONFIG_KEY=$(jq -r '.config_key' config.json)" >> $GITHUB_ENV
           echo "UPLOAD_TO_YOUTUBE=$(jq -r '.upload_to_youtube' config.json)" >> $GITHUB_ENV
+          echo "UPLOAD_VIDEO_TO_DRIVE=$(jq -r '.upload_video_to_drive' config.json)" >> $GITHUB_ENV
           echo "MAX_CHAR=$(jq -r '.maxChar' config.json)" >> $GITHUB_ENV
           echo "MIN_CHAR=$(jq -r '.minChar' config.json)" >> $GITHUB_ENV
           echo "MATCH_THRESHOLD=$(jq -r '.matchThreshold' config.json)" >> $GITHUB_ENV
@@ -149,12 +154,8 @@ jobs:
             -c:a aac -b:a 320k \
             -shortest output.mp4
 
-      - name: "📩 Notify: Video render complete"
-        run: |
-          export MESSAGE="🎬 Video #$VIDEO_NUMBER: Render complete!"
-          node scripts/send_telegram_message.js
-
       - name: ☁️ Upload results to Google Drive
+        if: ${{ env.UPLOAD_VIDEO_TO_DRIVE == 'true' }}
         run: |
           export UPLOAD_FILES="output.mp4"
           python scripts/upload_results_to_drive.py

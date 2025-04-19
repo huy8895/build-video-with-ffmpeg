@@ -49,12 +49,13 @@ jobs:
       YOUTUBE_META_JSON: ${{ vars.YOUTUBE_META_JSON }}
 
     steps:
+      - name: 📅 Checkout source code
+        uses: actions/checkout@v4
+
       - name: "📩 Notify: Start processing video"
         run: |
           export MESSAGE="🎬 Video #$VIDEO_NUMBER: Start 🎞 Process from Google Drive and Generate Slides + Video and Upload to YouTube !"
           node scripts/send_telegram_message.js
-      - name: 📅 Checkout source code
-        uses: actions/checkout@v4
 
       - name: ✅ Validate CONFIG_JSON content
         run: |

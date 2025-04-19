@@ -24,11 +24,11 @@ jobs:
     steps:
       - name: 🧾 Print selected environment
         run: |
-        echo "Environment selected: ${{ inputs.target_env }}"
+          echo "Environment selected: ${{ inputs.target_env }}"
 
       - name: 🔐 Print API Key (Demo)
         run: |
-        echo "Using API_KEY: ${{ secrets.API_KEY }}"
+          echo "Using API_KEY: ${{ secrets.API_KEY }}"
 
       - name: Print deploy path (from environment variable)
         run:

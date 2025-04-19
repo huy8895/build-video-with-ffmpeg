@@ -1,0 +1,38 @@
+name: 🧩 Full Video Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "Chọn môi trường (ose, mep, dde)"
+        required: true
+        default: "ose"
+        type: choice
+        options:
+          - ose
+          - mep
+          - dde
+      folder_url:
+        description: "Google Drive folder URL"
+        required: true
+      video_number:
+        description: "Số thứ tự video"
+        required: true
+
+jobs:
+  merge_adjust_transcribe:
+    uses: ./.github/workflows/merge_adjust_transcribe.yml
+    with:
+      env: ${{ inputs.env }}
+      folder_url: ${{ inputs.folder_url }}
+      video_number: ${{ inputs.video_number }}
+    secrets: inherit
+
+  process_from_drive:
+    needs: merge_adjust_transcribe
+    uses: ./.github/workflows/process-from-drive.yml
+    with:
+      env: ${{ inputs.env }}
+      folder_url: ${{ inputs.folder_url }}
+      video_number: ${{ inputs.video_number }}
+    secrets: inherit

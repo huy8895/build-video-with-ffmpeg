@@ -1,6 +1,17 @@
 name: 📅 Process from Google Drive and Generate Slides + Video
 
 on:
+  workflow_call:
+    inputs:
+      env:
+        required: true
+        type: string
+      folder_url:
+        required: true
+        type: string
+      video_number:
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       env:

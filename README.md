@@ -23,7 +23,6 @@ tương ứng với 2 scope:
 ```
 https://www.googleapis.com/auth/youtube.upload
 https://www.googleapis.com/auth/youtube.channel-memberships.creator
-https://www.googleapis.com/auth/youtube.force-ssl
 https://www.googleapis.com/auth/youtube
 ```
 
@@ -31,3 +30,13 @@ https://www.googleapis.com/auth/youtube
 https://www.googleapis.com/auth/drive.file
 https://www.googleapis.com/auth/drive.readonly
 ```
+
+- config env secret:
+1. YT_CLIENT_ID
+2. YT_CLIENT_SECRET
+3. YT_REFRESH_TOKEN
+4. GG_REFRESH_TOKEN
+
+- config env variable:
+1. CONFIG_JSON
+2. YOUTUBE_META_JSON

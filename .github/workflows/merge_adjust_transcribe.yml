@@ -37,6 +37,7 @@ jobs:
       name: ${{ inputs.env }}
 
     env:
+      CHANNEL: ${{ inputs.env }}
       FOLDER_URL: ${{ inputs.folder_url }}
       VIDEO_NUMBER: ${{ inputs.video_number }}
       CONFIG_JSON: ${{ vars.CONFIG_JSON }}
@@ -120,5 +121,5 @@ jobs:
 
       - name: 🚀 Gửi tin nhắn Telegram
         run: |
-          export MESSAGE="🎬 Video: #$VIDEO_NUMBER | Whisper: $WHISPER_MODEL | Speed: $SPEED | Lang: $LANGUAGE | ✅ Done!\n📁 $FOLDER_URL"
+          export MESSAGE="🎙Done Process Audio ! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | WhisperModel: $WHISPER_MODEL | Speed: $SPEED | Lang: $LANGUAGE | ✅ Done! 📁 $FOLDER_URL"
           node scripts/send_telegram_message.js

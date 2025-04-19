@@ -38,6 +38,7 @@ jobs:
       name: ${{ inputs.env }}
 
     env:
+      CHANNEL: ${{ inputs.env }}
       FOLDER_URL: ${{ inputs.folder_url }}
       VIDEO_NUMBER: ${{ inputs.video_number }}
       CONFIG_JSON: ${{ vars.CONFIG_JSON }}
@@ -55,7 +56,7 @@ jobs:
 
       - name: "📩 Notify: Start processing video"
         run: |
-          export MESSAGE="🎬 Video #$VIDEO_NUMBER: Start 🎞 Process from Google Drive and Generate Slides + Video and Upload to YouTube !"
+          export MESSAGE="🎬 Channel [$CHANNEL] Video #$VIDEO_NUMBER: Start 🎞 Process from Google Drive and Generate Slides + Video and Upload to YouTube !"
           node scripts/send_telegram_message.js
 
       - name: ✅ Validate CONFIG_JSON content
@@ -164,7 +165,7 @@ jobs:
 
       - name: "📩 Notify: Upload done (with Google Drive link)"
         run: |
-          export MESSAGE="🎉 Video #$VIDEO_NUMBER đã được xử lý và upload! 📂 Folder: $FOLDER_URL"
+          export MESSAGE="🎉Channel [$CHANNEL] Video #$VIDEO_NUMBER đã được xử lý và upload! 📂 Folder: $FOLDER_URL"
           node scripts/send_telegram_message.js
 
       - name: 🚀 Upload to YouTube (if enabled)
@@ -175,5 +176,5 @@ jobs:
         if: ${{ env.UPLOAD_TO_YOUTUBE == 'true' }}
         run: |
           YT_LINK=$(cat yt_link.txt)
-          export MESSAGE="🎉 Video #$VIDEO_NUMBER đã được upload! 📺 Xem tại: $YT_LINK"
+          export MESSAGE="🎉Channel [$CHANNEL] Video #$VIDEO_NUMBER đã được upload! 📺 Xem tại: $YT_LINK"
           node scripts/send_telegram_message.js

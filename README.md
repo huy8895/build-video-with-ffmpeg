@@ -17,3 +17,17 @@ zip audio.zip *.mp3
 - chọn scope là youtube
 - authorization code
 - copy token
+
+- tạo 2 refresh token : GG_REFRESH_TOKEN và YT_REFRESH_TOKEN
+tương ứng với 2 scope:
+```
+https://www.googleapis.com/auth/youtube.upload
+https://www.googleapis.com/auth/youtube.channel-memberships.creator
+https://www.googleapis.com/auth/youtube.force-ssl
+https://www.googleapis.com/auth/youtube
+```
+
+```
+https://www.googleapis.com/auth/drive.file
+https://www.googleapis.com/auth/drive.readonly
+```

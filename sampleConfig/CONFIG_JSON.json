@@ -1,0 +1,14 @@
+{
+  "whisper_model": "small",
+  "speed": "0.8",
+  "max_words_per_line": 1,
+  "language": "en",
+  "dpi": "192",
+  "resolution": "1080p",
+  "config_key": "onyxShadowingEnglish",
+  "upload_to_youtube": "true",
+  "maxChar": "200",
+  "minChar": "100",
+  "matchThreshold": "85",
+  "maxOffset": "4"
+}

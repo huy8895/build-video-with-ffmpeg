@@ -1,0 +1,31 @@
+name: 🔧 Test Deploy with Environment Input
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_env:
+        description: "Select environment"
+        required: true
+        default: "develop"
+        type: choice
+        options:
+          - develop
+          - staging
+          - production
+
+jobs:
+  deploy:
+    name: Deploy to ${{ inputs.target_env }}
+    runs-on: ubuntu-latest
+
+    environment:
+      name: ${{ inputs.target_env }}
+
+    steps:
+      - name: 🧾 Print selected environment
+        run: |
+        echo "Environment selected: ${{ inputs.target_env }}"
+
+      - name: 🔐 Print API Key (Demo)
+        run: |
+        echo "Using API_KEY: ${{ secrets.API_KEY }}"

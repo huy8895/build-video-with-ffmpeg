@@ -49,6 +49,7 @@ jobs:
 
       - name: 🤖 Parse CONFIG_JSON into environment variables
         run: |
+          echo "$CONFIG_JSON" > config.json
           echo "DPI=$(jq -r '.dpi' config.json)" >> $GITHUB_ENV
           echo "RESOLUTION=$(jq -r '.resolution' config.json)" >> $GITHUB_ENV
           echo "CONFIG_KEY=$(jq -r '.config_key' config.json)" >> $GITHUB_ENV
@@ -58,7 +59,7 @@ jobs:
           echo "MATCH_THRESHOLD=$(jq -r '.matchThreshold' config.json)" >> $GITHUB_ENV
           echo "MAX_OFFSET=$(jq -r '.maxOffset' config.json)" >> $GITHUB_ENV
 
-      - name: 🪀 Setup Node.js
+      - name: 🚀 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -68,11 +69,42 @@ jobs:
           npm install pptxgenjs fs-extra minimist compromise googleapis
           pip install --upgrade google-api-python-client google-auth google-auth-oauthlib
 
-      - name: 📂 ➜ Reusable - Download from Google Drive
-        uses: ./.github/workflows/steps/download-from-drive.yml
+      - name: 📂 Download files from Google Drive folder
+        run: |
+          python scripts/download_drive_folder_files.py transcript.srt content.txt audio_adjusted.mp3
+          echo "✅ Files downloaded:"
+          ls -lh input/
+          echo "✅ Copying files to root for compatibility..."
+          cp input/*.mp3 . || true
+          cp input/*.srt . || true
+          cp input/*.txt . || true
 
-      - name: 🧠 ➜ Reusable - Generate slide timings
-        uses: ./.github/workflows/steps/gen-slide-timings.yml
+      - name: 🧠 Generate slides-timing.json
+        run: |
+          node scripts/generate_timing_json_with_parser.js \
+            --srt transcript.srt \
+            --content content.txt \
+            --maxChar "$MAX_CHAR" \
+            --minChar "$MIN_CHAR" \
+            --matchThreshold "$MATCH_THRESHOLD" \
+            --maxOffset "$MAX_OFFSET"
+
+      - name: 🗓 Rename slides-timing.json to timings.json
+        run: mv slides-timing.json timings.json
+
+      - name: 🌟 Install Crimson Pro font
+        run: |
+          mkdir -p ~/.fonts
+          cp assets/fonts/*.ttf ~/.fonts/
+          fc-cache -f -v
+
+      - name: 💪 Install slide & video dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libreoffice \
+            poppler-utils \
+            ffmpeg
 
       - name: 📜 Generate PPTX from timing
         run: node scripts/gen_slides.js

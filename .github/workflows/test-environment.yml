@@ -29,3 +29,7 @@ jobs:
       - name: 🔐 Print API Key (Demo)
         run: |
         echo "Using API_KEY: ${{ secrets.API_KEY }}"
+
+      - name: Print deploy path (from environment variable)
+        run:
+          echo "Deploying to: ${{ vars.DEPLOY_PATH }}"

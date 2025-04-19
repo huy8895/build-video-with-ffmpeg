@@ -1,95 +1,68 @@
 name: 🎧 Merge, Adjust Speed, and Transcribe MP3
 
 on:
-  workflow_call:
-    inputs:
-      folder_url:
-        required: true
-        type: string
-      whisper_model:
-        required: true
-        type: string
-      video_number:
-        required: true
-        type: string
-      speed:
-        required: true
-        type: string
-      max_words_per_line:
-        required: true
-        type: string
-      language:
-        required: true
-        type: string
-    secrets:
-      YT_CLIENT_ID:
-        required: true
-      YT_CLIENT_SECRET:
-        required: true
-      YT_REFRESH_TOKEN:
-        required: true
-      TELEGRAM_BOT_TOKEN:
-        required: false
-      TELEGRAM_CHAT_ID:
-        required: false
-
-
   workflow_dispatch:
     inputs:
+      env:
+        description: 'Chọn môi trường (ose, mep, dde)'
+        required: true
+        default: 'ose'
+        type: choice
+        options:
+          - ose
+          - mep
+          - dde
       folder_url:
         description: 'Link folder Google Drive chứa audio.zip và content.txt'
         required: true
-      whisper_model:
-        description: 'Model Whisper (tiny, small, medium, large)'
-        required: true
-        default: 'tiny'
       video_number:
         description: 'Số Thứ tự video (1, 2, 3, ...)'
         required: true
-        default: '0'
-      speed:
-        description: 'Tốc độ điều chỉnh audio (ví dụ: 0.8, 1.0, 1.2)'
-        required: true
-        default: '0.8'
-      max_words_per_line:
-        description: 'Số từ tối đa mỗi dòng phụ đề (ví dụ: 1, 5, 8)'
-        required: true
-        default: '1'
-      language:
-        description: 'Ngôn ngữ của file audio (en, vi, es, etc.)'
-        required: true
-        default: 'en'
 
 jobs:
-  merge-adjust-transcribe:
-    name: "Video: #${{ github.event.inputs.video_number }} | 🎧 Whisper: ${{ github.event.inputs.whisper_model }} | 🐢 Speed: ${{ github.event.inputs.speed }} | 🌍 Language: ${{ github.event.inputs.language }}"
+  run:
     runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.env }}
+
+    env:
+      FOLDER_URL: ${{ inputs.folder_url }}
+      VIDEO_NUMBER: ${{ inputs.video_number }}
+      CONFIG_JSON: ${{ secrets.CONFIG_JSON }}
+      YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+      YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+      YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
     steps:
       - name: 📥 Checkout source code
         uses: actions/checkout@v4
 
+      - name: 🧪 Parse CONFIG_JSON into environment variables
+        id: parse
+        run: |
+          echo "$CONFIG_JSON" > config.json
+          echo "WHISPER_MODEL=$(jq -r '.whisper_model' config.json)" >> $GITHUB_ENV
+          echo "SPEED=$(jq -r '.speed' config.json)" >> $GITHUB_ENV
+          echo "MAX_WORDS_PER_LINE=$(jq -r '.max_words_per_line' config.json)" >> $GITHUB_ENV
+          echo "LANGUAGE=$(jq -r '.language' config.json)" >> $GITHUB_ENV
+
       - name: 🐍 Install Python & Google API packages
         run: pip install google-auth google-api-python-client
 
       - name: ⬇️ Download audio.zip & content.txt from Google Drive folder
-        env:
-          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
-          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
-          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
-          FOLDER_URL: ${{ github.event.inputs.folder_url }}
         run: |
           python scripts/download_drive_folder_files.py audio.zip content.txt
-      
+
       - name: 📁 Kiểm tra file tải về
         run: ls -lh input/
-        
+
       - name: 📂 Giải nén file audio.zip
         run: |
           rm -rf audio merged
           mkdir -p audio merged
           unzip -o input/audio.zip -d audio
-          echo "✅ Danh sách file .mp3 sau giải nén:"
           find audio -maxdepth 1 -type f -name "*.mp3" | sort -V > merged/sorted.txt
           cat merged/sorted.txt
 
@@ -98,54 +71,42 @@ jobs:
           sudo apt update
           sudo apt install -y ffmpeg
           pip install --upgrade pip
-          pip install setuptools-rust
-          pip install openai-whisper
+          pip install setuptools-rust openai-whisper
 
-      - name: 🔗 Nối tất cả file .mp3 theo thứ tự tên tăng dần
+      - name: 🔗 Nối tất cả file .mp3
         run: |
           mkdir -p merged
-          ls audio/*.mp3 | sort -V > merged/sorted.txt
           while read f; do
             echo "file '$PWD/$f'" >> merged/list.txt
           done < merged/sorted.txt
-          echo "📃 Danh sách merge:"
-          cat merged/list.txt
           ffmpeg -f concat -safe 0 -i merged/list.txt -c copy merged/merged.mp3
 
-      - name: "🐢 Điều chỉnh tốc độ audio (speed: ${{ github.event.inputs.speed }})"
+      - name: 🐢 Điều chỉnh tốc độ audio
         run: |
           mkdir -p adjusted
-          ffmpeg -i merged/merged.mp3 -filter:a "atempo=${{ github.event.inputs.speed }}" -vn adjusted/audio_adjusted.mp3
+          ffmpeg -i merged/merged.mp3 -filter:a "atempo=$SPEED" -vn adjusted/audio_adjusted.mp3
 
-      - name: "✍️ Chuyển thành phụ đề SRT bằng Whisper ${{ github.event.inputs.whisper_model }} | ${{ github.event.inputs.language }} | ${{ github.event.inputs.max_words_per_line }} words/line | ${{ github.event.inputs.speed }}x"
+      - name: ✍️ Tạo phụ đề SRT
         run: |
           whisper adjusted/audio_adjusted.mp3 \
-            --language ${{ github.event.inputs.language }} \
-            --model ${{ github.event.inputs.whisper_model }} \
+            --language "$LANGUAGE" \
+            --model "$WHISPER_MODEL" \
             --output_format srt \
             --word_timestamps True \
-            --max_words_per_line ${{ github.event.inputs.max_words_per_line }} \
+            --max_words_per_line "$MAX_WORDS_PER_LINE" \
             --output_dir output
 
-      - name: 🏷️ Đổi tên file đầu ra && Di chuyển file đầu ra về thư mục gốc
+      - name: 🏷️ Đổi tên & di chuyển file
         run: |
           mv output/audio_adjusted.srt transcript.srt
           cp adjusted/audio_adjusted.mp3 audio_adjusted.mp3
 
-      - name: ☁️ Upload audio + srt to Google Drive
+      - name: ☁️ Upload lên Google Drive
         run: |
-          export FOLDER_URL="${{ github.event.inputs.folder_url }}"
           export UPLOAD_FILES="audio_adjusted.mp3 transcript.srt"
           python scripts/upload_results_to_drive.py
-        env:
-          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
-          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
-          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
 
-      - name: 🚀 Send Telegram message
+      - name: 🚀 Gửi tin nhắn Telegram
         run: |
-          export MESSAGE="Video: #${{ github.event.inputs.video_number }} | 🎧 Whisper: ${{ github.event.inputs.whisper_model }} | 🐢 Speed: ${{ github.event.inputs.speed }} | 🌍 Language: ${{ github.event.inputs.language }} done! Link: ${{ github.event.inputs.folder_url }}"
+          export MESSAGE="🎬 Video: #$VIDEO_NUMBER | Whisper: $WHISPER_MODEL | Speed: $SPEED | Lang: $LANGUAGE | ✅ Done!\n📁 $FOLDER_URL"
           node scripts/send_telegram_message.js
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}

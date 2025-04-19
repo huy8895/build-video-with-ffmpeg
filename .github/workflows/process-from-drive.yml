@@ -1,120 +1,64 @@
-name: 📥 Process from Google Drive and Generate Slides + Video
+name: 📅 Process from Google Drive and Generate Slides + Video
 
 on:
-  workflow_call:
-    inputs:
-      video_number:
-        description: "Video number"
-        required: true
-        type: string
-        default: "99"
-
-      folder_url:
-        description: "Google Drive folder URL"
-        type: string
-        required: true
-
-      dpi:
-        description: "DPI for slide PNGs (96=480p, 128=720p, 192=1080p)"
-        type: string
-        default: "192"
-
-      resolution:
-        description: "Video resolution"
-        type: string
-        default: "480p"
-
-      config_key:
-        description: "Slide config key"
-        type: string
-        default: "onyxShadowingEnglish"
-
-      upload_to_youtube:
-        description: "Upload video to YouTube?"
-        type: string
-        default: "false"
-
-      maxChar:
-        description: "Số ký tự tối đa mỗi slide"
-        type: string
-        default: "200"
-
-      minChar:
-        description: "Số ký tự tối thiểu mỗi slide"
-        type: string
-        default: "100"
-
-      matchThreshold:
-        description: "Tỷ lệ khớp tối thiểu (%)"
-        type: string
-        default: "90"
-
-      maxOffset:
-        description: "Số từ lệch tối đa khi so khớp"
-        type: string
-        default: "3"
-    secrets:
-      YT_CLIENT_ID:
-        required: true
-      YT_CLIENT_SECRET:
-        required: true
-      YT_REFRESH_TOKEN:
-        required: true
-      TELEGRAM_BOT_TOKEN:
-        required: false
-      TELEGRAM_CHAT_ID:
-        required: false
   workflow_dispatch:
     inputs:
+      env:
+        description: "Chọn môi trường (ose, mep, dde)"
+        required: true
+        default: "ose"
+        type: choice
+        options:
+          - ose
+          - mep
+          - dde
       video_number:
         description: "Video number"
         required: true
-        default: "99"
-
+        default: "0"
       folder_url:
         description: "Google Drive folder URL"
         required: true
 
-      dpi:
-        description: "DPI for slide PNGs (96=480p, 128=720p, 192=1080p)"
-        default: "192"
-
-      resolution:
-        description: "Video resolution"
-        default: "480p"
-
-      config_key:
-        description: "Slide config key"
-        default: "onyxShadowingEnglish"
-
-      upload_to_youtube:
-        description: "Upload video to YouTube?"
-        default: "false"
-
-      maxChar:
-        description: "Số ký tự tối đa mỗi slide"
-        default: "200"
-
-      minChar:
-        description: "Số ký tự tối thiểu mỗi slide"
-        default: "100"
-
-      matchThreshold:
-        description: "Tỷ lệ khớp tối thiểu (%)"
-        default: "90"
-
-      maxOffset:
-        description: "Số từ lệch tối đa khi so khớp"
-        default: "3"
 jobs:
   full-process:
     runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.env }}
+
+    env:
+      FOLDER_URL: ${{ inputs.folder_url }}
+      VIDEO_NUMBER: ${{ inputs.video_number }}
+      CONFIG_JSON: ${{ vars.CONFIG_JSON }}
+      YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+      YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+      YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
     steps:
-      - name: "Video #${{ github.event.inputs.video_number }} | folder_url: ${{ github.event.inputs.folder_url }} | dpi: ${{ github.event.inputs.dpi }} | resolution: ${{ github.event.inputs.resolution }} | config_key: ${{ github.event.inputs.config_key }} | upload_to_youtube: ${{ github.event.inputs.upload_to_youtube }}"
+      - name: 📅 Checkout source code
         uses: actions/checkout@v4
 
-      - name: 🛠 Setup Node.js
+      - name: ✅ Validate CONFIG_JSON content
+        run: |
+          echo "$CONFIG_JSON" > config.json
+          if ! jq -e '(.dpi and .resolution and .config_key and .upload_to_youtube and .maxChar and .minChar and .matchThreshold and .maxOffset)' config.json > /dev/null; then
+            echo "❌ CONFIG_JSON is missing required fields. Please check JSON structure." && exit 1
+          fi
+
+      - name: 🤖 Parse CONFIG_JSON into environment variables
+        run: |
+          echo "DPI=$(jq -r '.dpi' config.json)" >> $GITHUB_ENV
+          echo "RESOLUTION=$(jq -r '.resolution' config.json)" >> $GITHUB_ENV
+          echo "CONFIG_KEY=$(jq -r '.config_key' config.json)" >> $GITHUB_ENV
+          echo "UPLOAD_TO_YOUTUBE=$(jq -r '.upload_to_youtube' config.json)" >> $GITHUB_ENV
+          echo "MAX_CHAR=$(jq -r '.maxChar' config.json)" >> $GITHUB_ENV
+          echo "MIN_CHAR=$(jq -r '.minChar' config.json)" >> $GITHUB_ENV
+          echo "MATCH_THRESHOLD=$(jq -r '.matchThreshold' config.json)" >> $GITHUB_ENV
+          echo "MAX_OFFSET=$(jq -r '.maxOffset' config.json)" >> $GITHUB_ENV
+
+      - name: 🪀 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -124,51 +68,16 @@ jobs:
           npm install pptxgenjs fs-extra minimist compromise googleapis
           pip install --upgrade google-api-python-client google-auth google-auth-oauthlib
 
-      - name: 📂 Download files from Google Drive folder
-        env:
-          FOLDER_URL: ${{ github.event.inputs.folder_url }}
-          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
-          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
-          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
-        run: |
-          python scripts/download_drive_folder_files.py transcript.srt content.txt audio_adjusted.mp3
-          echo "✅ Files downloaded:"
-          ls -lh input/
-          echo "✅ Copying files to root for compatibility..."
-          cp input/*.mp3 . || true
-          cp input/*.srt . || true
-          cp input/*.txt . || true
+      - name: 📂 ➜ Reusable - Download from Google Drive
+        uses: ./.github/workflows/steps/download-from-drive.yml
 
-      - name: 🧠 Generate slides-timing.json
-        run: |
-          node scripts/generate_timing_json_with_parser.js \
-            --srt transcript.srt \
-            --content content.txt \
-            --maxChar ${{ github.event.inputs.maxChar }} \
-            --minChar ${{ github.event.inputs.minChar }} \
-            --matchThreshold ${{ github.event.inputs.matchThreshold }} \
-            --maxOffset ${{ github.event.inputs.maxOffset }}
-      
-      - name: 🧾 Rename slides-timing.json to timings.json
-        run: mv slides-timing.json timings.json
-      
-      - name: 🆕 Install Crimson Pro font
-        run: |
-          mkdir -p ~/.fonts
-          cp assets/fonts/*.ttf ~/.fonts/
-          fc-cache -f -v
-      - name: 🛠 Install slide & video dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libreoffice \
-            poppler-utils \
-            ffmpeg
-      
+      - name: 🧠 ➜ Reusable - Generate slide timings
+        uses: ./.github/workflows/steps/gen-slide-timings.yml
+
       - name: 📜 Generate PPTX from timing
-        env:
-          CONFIG_KEY: ${{ github.event.inputs.config_key }}
         run: node scripts/gen_slides.js
+        env:
+          CONFIG_KEY: ${{ env.CONFIG_KEY }}
 
       - name: 📄 Convert PPTX to PDF
         run: |
@@ -178,14 +87,14 @@ jobs:
       - name: 🖼 Convert PDF to PNG
         run: |
           mkdir -p slides_png
-          pdftoppm -png -r ${{ github.event.inputs.dpi }} slides_pdf/slides.pdf slides_png/slide
+          pdftoppm -png -r "$DPI" slides_pdf/slides.pdf slides_png/slide
 
       - name: 📝 Generate input.txt
         run: IMAGES_DIR=slides_png node scripts/build_input_list.js
 
-      - name: 🎬 Render video (if enabled)
+      - name: 🎨 Render video (if enabled)
         run: |
-          case "${{ github.event.inputs.resolution }}" in
+          case "$RESOLUTION" in
             "720p")  SIZE="1280:720" ;;
             "1080p") SIZE="1920:1080" ;;
             *)       SIZE="854:480" ;;
@@ -196,47 +105,28 @@ jobs:
             -c:a aac -b:a 320k \
             -shortest output.mp4
 
-
       - name: "📩 Notify: Video render complete"
         run: |
-          export MESSAGE="🎬 Video #${{ github.event.inputs.video_number }}: Render complete!"
+          export MESSAGE="🎬 Video #$VIDEO_NUMBER: Render complete!"
           node scripts/send_telegram_message.js
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-      
+
       - name: ☁️ Upload results to Google Drive
-        env:
-          FOLDER_URL: ${{ github.event.inputs.folder_url }}
-          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
-          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
-          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
         run: |
           export UPLOAD_FILES="output.mp4"
           python scripts/upload_results_to_drive.py
-        
+
       - name: "📩 Notify: Upload done (with Google Drive link)"
         run: |
-          export MESSAGE="🎉 Video #${{ github.event.inputs.video_number }} đã được xử lý và upload! 📂 Folder: ${{ github.event.inputs.folder_url }}"
+          export MESSAGE="🎉 Video #$VIDEO_NUMBER đã được xử lý và upload! 📂 Folder: $FOLDER_URL"
           node scripts/send_telegram_message.js
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
       - name: 🚀 Upload to YouTube (if enabled)
-        if: ${{ github.event.inputs.upload_to_youtube == 'true' }}
-        env:
-          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
-          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
-          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+        if: ${{ env.UPLOAD_TO_YOUTUBE == 'true' }}
         run: python scripts/upload_youtube.py
 
-      - name: "📩 Send Telegram message with YouTube link (if available)"
-        if: ${{ github.event.inputs.upload_to_youtube == 'true' }}
+      - name: 📩 Send Telegram message with YouTube link (if available)
+        if: ${{ env.UPLOAD_TO_YOUTUBE == 'true' }}
         run: |
           YT_LINK=$(cat yt_link.txt)
-          export MESSAGE="🎉 Video #${{ github.event.inputs.video_number }} đã được upload! 📺 Xem tại: $YT_LINK"
+          export MESSAGE="🎉 Video #$VIDEO_NUMBER đã được upload! 📺 Xem tại: $YT_LINK"
           node scripts/send_telegram_message.js
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}

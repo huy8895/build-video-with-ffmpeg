@@ -1,0 +1,15 @@
+{
+  "background": "assets/MEP-background.png",
+  "textOptions": {
+    "x": 4.8,
+    "y": 0.5,
+    "w": 4.5,
+    "h": 4.5,
+    "fontSize": 36,
+    "color": "FFFFFF",
+    "fontFace": "DejaVu Serif",
+    "align": "justify",
+    "valign": "top",
+    "wrap": true
+  }
+}

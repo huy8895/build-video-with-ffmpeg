@@ -112,7 +112,7 @@ jobs:
       - name: 🗓 Rename slides-timing.json to timings.json
         run: mv slides-timing.json timings.json
 
-      - name: 🌟 Install Crimson Pro font
+      - name: 🌟 Install font
         run: |
           mkdir -p ~/.fonts
           cp assets/fonts/*.ttf ~/.fonts/

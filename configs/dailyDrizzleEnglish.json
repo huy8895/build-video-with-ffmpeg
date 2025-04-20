@@ -1,8 +1,8 @@
 {
-  "background": "assets/DDE_background.jpg",
+  "background": "assets/DDE-background.jpg",
   "textOptions": {
     "x": 1.5,
-    "y": 0.5,
+    "y": 1,
     "w": 8,
     "h": 4.5,
     "fontSize": 34,

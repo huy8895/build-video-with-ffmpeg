@@ -6,9 +6,9 @@
     "w": 4.5,
     "h": 4.5,
     "fontSize": 36,
-    "color": "FFFFFF",
-    "fontFace": "DejaVu Serif",
-    "align": "justify",
+    "color": "b4a790",
+    "fontFace": "Kollektif",
+    "align": "left",
     "valign": "top",
     "wrap": true
   }

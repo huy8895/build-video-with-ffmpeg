@@ -1,0 +1,15 @@
+{
+  "background": "assets/DDE_background.jpg",
+  "textOptions": {
+    "x": 4.8,
+    "y": 0.5,
+    "w": 4.5,
+    "h": 4.5,
+    "fontSize": 30,
+    "color": "b4a790",
+    "fontFace": "Kollektif",
+    "align": "right",
+    "valign": "top",
+    "wrap": true
+  }
+}

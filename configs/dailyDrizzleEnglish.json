@@ -1,11 +1,11 @@
 {
   "background": "assets/DDE_background.jpg",
   "textOptions": {
-    "x": 4.8,
+    "x": 1.5,
     "y": 0.5,
-    "w": 4.5,
+    "w": 8,
     "h": 4.5,
-    "fontSize": 30,
+    "fontSize": 34,
     "color": "f3e9c5",
     "fontFace": "PT Serif",
     "align": "center",

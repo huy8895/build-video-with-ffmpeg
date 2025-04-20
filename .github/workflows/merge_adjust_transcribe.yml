@@ -123,3 +123,8 @@ jobs:
         run: |
           export MESSAGE="🎙Done Process Audio ! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | WhisperModel: $WHISPER_MODEL | Speed: $SPEED | Lang: $LANGUAGE | ✅ Done! 📁 $FOLDER_URL"
           node scripts/send_telegram_message.js
+      - name: 📛 Notify Telegram if job failed
+        if: failure()
+        run: |
+          export MESSAGE="❌ Job 🎧 Merge, Adjust Speed, and Transcribe MP3 thất bại! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | 📁 $FOLDER_URL"
+          node scripts/send_telegram_message.js

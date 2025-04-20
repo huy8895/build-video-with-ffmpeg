@@ -12,12 +12,12 @@ const lines   = [];
 timings.forEach((item, idx) => {
     const base  = String(idx + 1);  // index: 1, 2, 3...
     const fileName3 = 'slide-' + base.padStart(3, '0') + '.png';
+    const fileName2 = 'slide-' + base.padStart(2, '0') + '.png';
     const fileName  = 'slide-' + base + '.png';
 
-    const img3 = path.join(imagesDir, fileName3);
-    const img  = fs.existsSync(img3)
-        ? img3
-        : path.join(imagesDir, fileName);
+    let img = path.join(imagesDir, fileName3);
+    if (!fs.existsSync(img)) img = path.join(imagesDir, fileName2);
+    if (!fs.existsSync(img)) img = path.join(imagesDir, fileName);
 
     if (!fs.existsSync(img)) {
         throw new Error(`❌ Không tìm thấy ảnh cho index ${idx + 1}`);

@@ -52,6 +52,10 @@ jobs:
       - name: 📥 Checkout source code
         uses: actions/checkout@v4
 
+      - name: "📩 Notify: Start processing AUDIO"
+        run: |
+          export MESSAGE="▶️ [$CHANNEL] Video #$VIDEO_NUMBER: Start 🎧 Merge, Adjust Speed, and Transcribe MP3"
+          node scripts/send_telegram_message.js
       - name: 🧪 Parse CONFIG_JSON into environment variables
         id: parse
         run: |

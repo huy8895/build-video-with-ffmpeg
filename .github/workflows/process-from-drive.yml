@@ -73,6 +73,7 @@ jobs:
           echo "RESOLUTION=$(jq -r '.resolution' config.json)" >> $GITHUB_ENV
           echo "CONFIG_KEY=$(jq -r '.config_key' config.json)" >> $GITHUB_ENV
           echo "UPLOAD_TO_YOUTUBE=$(jq -r '.upload_to_youtube' config.json)" >> $GITHUB_ENV
+          echo "UPLOAD_SLIDE_TO_DRIVE=$(jq -r '.upload_slide_to_drive' config.json)" >> $GITHUB_ENV
           echo "UPLOAD_VIDEO_TO_DRIVE=$(jq -r '.upload_video_to_drive' config.json)" >> $GITHUB_ENV
           echo "MAX_CHAR=$(jq -r '.maxChar' config.json)" >> $GITHUB_ENV
           echo "MIN_CHAR=$(jq -r '.minChar' config.json)" >> $GITHUB_ENV
@@ -131,11 +132,16 @@ jobs:
         env:
           CONFIG_KEY: ${{ env.CONFIG_KEY }}
 
+      - name: ☁️ Upload SLIDE to Google Drive
+        if: ${{ env.UPLOAD_SLIDE_TO_DRIVE == 'true' }}
+        run: |
+          export UPLOAD_FILES="slides.pptx"
+          python scripts/upload_results_to_drive.py
+
       - name: 📄 Convert PPTX to PDF
         run: |
           mkdir -p slides_pdf
           soffice --headless --convert-to pdf --outdir slides_pdf slides.pptx
-
       - name: 🖼 Convert PDF to PNG
         run: |
           mkdir -p slides_png
@@ -145,6 +151,7 @@ jobs:
         run: IMAGES_DIR=slides_png node scripts/build_input_list.js
 
       - name: 🎨 Render video (if enabled)
+        if: ${{ env.UPLOAD_VIDEO_TO_DRIVE == 'true' || env.UPLOAD_TO_YOUTUBE == 'true' }}
         run: |
           case "$RESOLUTION" in
             "720p")  SIZE="1280:720" ;;
@@ -157,7 +164,7 @@ jobs:
             -c:a aac -b:a 320k \
             -shortest output.mp4
 
-      - name: ☁️ Upload results to Google Drive
+      - name: ☁️ Upload VIDEO to Google Drive
         if: ${{ env.UPLOAD_VIDEO_TO_DRIVE == 'true' }}
         run: |
           export UPLOAD_FILES="output.mp4"

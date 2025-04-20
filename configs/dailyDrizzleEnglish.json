@@ -6,9 +6,9 @@
     "w": 4.5,
     "h": 4.5,
     "fontSize": 30,
-    "color": "b4a790",
-    "fontFace": "Kollektif",
-    "align": "right",
+    "color": "f3e9c5",
+    "fontFace": "PT Serif",
+    "align": "center",
     "valign": "top",
     "wrap": true
   }

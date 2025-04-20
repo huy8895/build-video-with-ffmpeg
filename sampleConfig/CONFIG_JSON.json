@@ -14,3 +14,21 @@
   "matchThreshold": "85",
   "maxOffset": "4"
 }
+
+{
+  "whisper_model": "small",
+  "speed": "0.8",
+  "max_words_per_line": 1,
+  "language": "en",
+  "dpi": "192",
+  "resolution": "1080p",
+  "config_key": "dailyDrizzleEnglish.json",
+  "upload_slide_to_drive": "true",
+  "upload_video_to_drive": "false",
+  "upload_to_youtube": "false",
+  "maxChar": "100",
+  "minChar": "50",
+  "matchThreshold": "85",
+  "maxOffset": "4"
+}
+

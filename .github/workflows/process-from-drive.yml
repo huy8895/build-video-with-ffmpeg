@@ -147,6 +147,9 @@ jobs:
           mkdir -p slides_png
           pdftoppm -png -r "$DPI" slides_pdf/slides.pdf slides_png/slide
 
+      - name: "📸 Debug: List slides_png content"
+        run: ls -lh slides_png
+
       - name: 📝 Generate input.txt
         run: IMAGES_DIR=slides_png node scripts/build_input_list.js
 

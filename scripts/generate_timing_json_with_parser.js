@@ -237,7 +237,11 @@ function generateTimings(srtData, slides, matchThreshold, maxOffset) {
 
         // lặp qua các từ trong slide gốc và push vào mảng arraySrtSplit
         for (let i = 0; i < slideSplit.length; i++) {
-            arraySrtSplit.push(normalizeText(availableSrtData[i].text));
+            if(availableSrtData[i]){
+                arraySrtSplit.push(normalizeText(availableSrtData[i].text));
+            } else {
+                console.error('Không tìm thấy từ trong SRT tương ứng với từ trong slide: ', slideSplit[i]);
+            }
 
         }
         console.debug('arraySrtSplit: ', arraySrtSplit);

@@ -35,6 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: ${{ inputs.env }}
+    name: "Audio  Channel: ${{ inputs.env }} | Video: #${{ inputs.video_number }}"
 
     env:
       CHANNEL: ${{ inputs.env }}

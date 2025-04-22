@@ -21,6 +21,7 @@ on:
 
 jobs:
   merge_adjust_transcribe:
+    name: "merge_adjust_transcribe ${{ inputs.env }} | Video: #${{ inputs.video_number }}"
     uses: ./.github/workflows/merge_adjust_transcribe.yml
     with:
       env: ${{ inputs.env }}
@@ -29,6 +30,7 @@ jobs:
     secrets: inherit
 
   process_from_drive:
+    name: "process_from_drive ${{ inputs.env }} | Video: #${{ inputs.video_number }}"
     needs: merge_adjust_transcribe
     uses: ./.github/workflows/process-from-drive.yml
     with:

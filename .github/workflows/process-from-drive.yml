@@ -33,6 +33,7 @@ on:
 
 jobs:
   full-process:
+    name: "Video  Channel: ${{ inputs.env }} | Video: #${{ inputs.video_number }}"
     runs-on: ubuntu-latest
     environment:
       name: ${{ inputs.env }}

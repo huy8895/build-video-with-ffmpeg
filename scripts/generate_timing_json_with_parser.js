@@ -224,6 +224,7 @@ function generateTimings(srtData, slides, matchThreshold, maxOffset) {
         console.debug('=== [start loop] each slide: ', indexSlide, slide);
         // Chuẩn hóa nội dung slide
         const normalizedSlide = normalizeText(slide);
+        if (normalizedSlide.trim() === '') continue;
         console.debug('normalizedSlide : ', normalizedSlide);
         let startIndex = null; // Vị trí bắt đầu của SRT khớp với slide
         let endIndex = null; // Vị trí kết thúc của SRT khớp với slide

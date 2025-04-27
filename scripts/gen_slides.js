@@ -11,13 +11,22 @@ const config = JSON.parse(fs.readFileSync(`configs/${configKey}.json`, "utf8"));
 console.log("CONFIG:", config);
 const slideData = JSON.parse(fs.readFileSync("timings.json", "utf8"));
 
+// Check if background.jpg exists in current directory
+let backgroundPath = config.background;
+if (fs.existsSync("background.jpg")) {
+    console.log("✅ Using downloaded background.jpg for slide background.");
+    backgroundPath = "background.jpg";
+} else {
+    console.log("ℹ️ Using default background from config.");
+}
+
 const pptx = new PPTXGenJS();
 pptx.defineLayout({ name: "WIDESCREEN_HD", width: 10, height: 5.625 });
 pptx.layout = "WIDESCREEN_HD";
 
 slideData.forEach((item) => {
     const slide = pptx.addSlide();
-    slide.background = { path: config.background };
+    slide.background = { path: backgroundPath };
     slide.addText(item.text, config.textOptions);
 });
 

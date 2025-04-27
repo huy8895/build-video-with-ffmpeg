@@ -93,13 +93,14 @@ jobs:
 
       - name: 📂 Download files from Google Drive folder
         run: |
-          python scripts/download_drive_folder_files.py transcript.srt content.txt audio_adjusted.mp3
+          python scripts/download_drive_folder_files.py transcript.srt content.txt audio_adjusted.mp3 background.jpg
           echo "✅ Files downloaded:"
           ls -lh input/
           echo "✅ Copying files to root for compatibility..."
           cp input/*.mp3 . || true
           cp input/*.srt . || true
           cp input/*.txt . || true
+          cp input/background.jpg . || true  # 👈 THÊM DÒNG NÀY
 
       - name: 🧠 Generate slides-timing.json
         run: |

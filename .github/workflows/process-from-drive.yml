@@ -175,11 +175,6 @@ jobs:
           export UPLOAD_FILES="output.mp4"
           python scripts/upload_results_to_drive.py
 
-      - name: "📩 Notify: Upload done (with Google Drive link)"
-        run: |
-          export MESSAGE="🎉Channel [$CHANNEL] Video #$VIDEO_NUMBER đã được xử lý và upload! 📂 Folder: $FOLDER_URL"
-          node scripts/send_telegram_message.js
-
       - name: 🚀 Upload to YouTube (if enabled)
         if: ${{ env.UPLOAD_TO_YOUTUBE == 'true' }}
         run: python scripts/upload_youtube.py

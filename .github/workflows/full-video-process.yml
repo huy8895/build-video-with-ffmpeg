@@ -12,6 +12,7 @@ on:
           - ose
           - mep
           - dde
+          - kunzyPE
       folder_url:
         description: "Google Drive folder URL"
         required: true

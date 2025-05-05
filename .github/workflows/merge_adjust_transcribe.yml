@@ -65,7 +65,7 @@ jobs:
           echo "SPEED=$(jq -r '.speed' config.json)" >> $GITHUB_ENV
           echo "MAX_WORDS_PER_LINE=$(jq -r '.max_words_per_line' config.json)" >> $GITHUB_ENV
           echo "LANGUAGE=$(jq -r '.language' config.json)" >> $GITHUB_ENV
-          echo "VOLUME=$(jq -r '.volume // 1.0' config.json)" >> $GITHUB_ENV
+          echo "VOLUME=$(jq -r '.volume' config.json)" >> $GITHUB_ENV
 
       - name: 🐍 Install Python & Google API packages
         run: pip install google-auth google-api-python-client

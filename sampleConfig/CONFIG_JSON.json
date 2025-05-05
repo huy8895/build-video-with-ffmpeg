@@ -12,7 +12,8 @@
   "maxChar": "200",
   "minChar": "100",
   "matchThreshold": "85",
-  "maxOffset": "4"
+  "maxOffset": "4",
+  "volume": 1.5
 }
 
 {

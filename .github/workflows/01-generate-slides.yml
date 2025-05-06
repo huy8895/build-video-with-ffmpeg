@@ -93,9 +93,10 @@ jobs:
         run: |
           mkdir -p ~/.fonts && cp assets/fonts/*.ttf ~/.fonts/ && fc-cache -f -v
 
-      - name: 📜 Generate PPTX
+      - name: 📜 Generate PPTX from timing
         run: node scripts/gen_slides.js
-        env: { CONFIG_KEY: ${{ env.CONFIG_KEY }} }
+        env:
+          CONFIG_KEY: ${{ env.CONFIG_KEY }}
 
       # ───────────────────────────────────────────────────────────
       # 4. Upload lên Google Drive + thông báo

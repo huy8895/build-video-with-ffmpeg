@@ -1,4 +1,4 @@
-name: 🧩 Full Video Pipeline
+name: 🧩 Audio & Slide Pipeline -v2
 
 on:
   workflow_dispatch:
@@ -39,14 +39,3 @@ jobs:
       folder_url:   ${{ inputs.folder_url }}
       video_number: ${{ inputs.video_number }}
     secrets: inherit
-
-  render_video:
-    name: "render_video ${{ inputs.env }} | Video: #${{ inputs.video_number }}"
-    needs: generate_slides
-    uses: ./.github/workflows/02-render-video.yml
-    with:
-      env:          ${{ inputs.env }}
-      folder_url:   ${{ inputs.folder_url }}
-      video_number: ${{ inputs.video_number }}
-    secrets: inherit
-    environment: await-edit     # 👈 tạm dừng đợi approval

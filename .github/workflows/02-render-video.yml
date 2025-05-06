@@ -1,4 +1,4 @@
-name: 🎞 Render Video & Upload
+name: 🎞 Render Video & Upload From Slide
 
 on:
   workflow_call:

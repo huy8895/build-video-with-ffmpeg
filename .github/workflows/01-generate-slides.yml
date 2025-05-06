@@ -1,0 +1,110 @@
+name: 📑 Generate Slides from Google Drive
+
+on:
+  workflow_call:
+    inputs:
+      env:           { required: true,  type: string }
+      folder_url:    { required: true,  type: string }
+      video_number:  { required: true,  type: string }
+  workflow_dispatch:
+    inputs:
+      env:          { description: 'Chọn môi trường (ose, mep, dde)', default: 'ose', type: choice, options: [ose, mep, dde] }
+      video_number: { description: 'Video number', default: '0',     required: true }
+      folder_url:   { description: 'Google Drive folder URL',        required: true }
+
+jobs:
+  make-slides:
+    name: "Slides | ${{ inputs.env }} | #${{ inputs.video_number }}"
+    runs-on: ubuntu-latest
+    environment: { name: ${{ inputs.env }} }
+
+    env:
+      FOLDER_URL:         ${{ inputs.folder_url }}
+      CHANNEL:            ${{ inputs.env }}
+      VIDEO_NUMBER:       ${{ inputs.video_number }}
+      CONFIG_JSON:        ${{ vars.CONFIG_JSON }}
+      GG_REFRESH_TOKEN:   ${{ secrets.GG_REFRESH_TOKEN }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+
+    steps:
+      - name: 📅 Checkout source code
+        uses: actions/checkout@v4
+
+      - name: "📩 Notify: Start slide generation"
+        run: |
+          export MESSAGE="▶️ [$CHANNEL] Video #$VIDEO_NUMBER: Bắt đầu tạo SLIDE 📑"
+          node scripts/send_telegram_message.js
+
+      # ───────────────────────────────────────────────────────────
+      # 1. Đọc & parse CONFIG_JSON (giữ nguyên logic cũ)
+      # ───────────────────────────────────────────────────────────
+      - name: ✅ Validate CONFIG_JSON
+        run: |
+          echo "$CONFIG_JSON" > config.json
+          if ! jq -e '(.dpi and .resolution and .config_key and .maxChar and .minChar and .matchThreshold and .maxOffset)' config.json > /dev/null; then
+            echo "❌ Thiếu trường bắt buộc trong CONFIG_JSON" && exit 1
+          fi
+
+      - name: 🤖 Parse CONFIG_JSON ⇒ env
+        run: |
+          echo "$CONFIG_JSON" > config.json
+          echo "DPI=$(jq -r '.dpi'           config.json)" >> $GITHUB_ENV
+          echo "CONFIG_KEY=$(jq -r '.config_key' config.json)" >> $GITHUB_ENV
+          echo "MAX_CHAR=$(jq -r '.maxChar'  config.json)" >> $GITHUB_ENV
+          echo "MIN_CHAR=$(jq -r '.minChar'  config.json)" >> $GITHUB_ENV
+          echo "MATCH_THRESHOLD=$(jq -r '.matchThreshold' config.json)" >> $GITHUB_ENV
+          echo "MAX_OFFSET=$(jq -r '.maxOffset' config.json)" >> $GITHUB_ENV
+
+      # ───────────────────────────────────────────────────────────
+      # 2. Cài đặt deps & lấy file
+      # ───────────────────────────────────────────────────────────
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+
+      - name: 📦 Install Node + Python deps
+        run: |
+          npm install pptxgenjs fs-extra minimist compromise googleapis
+          pip install --upgrade google-api-python-client google-auth google-auth-oauthlib
+
+      - name: 📂 Download files từ Google Drive
+        run: |
+          python scripts/download_drive_folder_files.py transcript.srt content.txt background.jpg
+          ls -lh input/
+          cp input/*.srt . && cp input/*.txt . && cp input/background.jpg . || true
+
+      # ───────────────────────────────────────────────────────────
+      # 3. Tạo timing & SLIDE
+      # ───────────────────────────────────────────────────────────
+      - name: 🧠 Generate slides‑timing.json
+        run: |
+          node scripts/generate_timing_json_with_parser.js \
+            --srt transcript.srt \
+            --content content.txt \
+            --maxChar "$MAX_CHAR" \
+            --minChar "$MIN_CHAR" \
+            --matchThreshold "$MATCH_THRESHOLD" \
+            --maxOffset "$MAX_OFFSET"
+      - name: mv timing
+        run: mv slides-timing.json timings.json
+
+      - name: 🌟 Install font (nếu PPTX cần font tuỳ chỉnh)
+        run: |
+          mkdir -p ~/.fonts && cp assets/fonts/*.ttf ~/.fonts/ && fc-cache -f -v
+
+      - name: 📜 Generate PPTX
+        run: node scripts/gen_slides.js
+        env: { CONFIG_KEY: ${{ env.CONFIG_KEY }} }
+
+      # ───────────────────────────────────────────────────────────
+      # 4. Upload lên Google Drive + thông báo
+      # ───────────────────────────────────────────────────────────
+      - name: ☁️ Upload SLIDE to Drive
+        run: |
+          export UPLOAD_FILES="slides.pptx"
+          python scripts/upload_results_to_drive.py
+
+      - name: "📩 Notify: Slides done"
+        run: |
+          export MESSAGE="✅ [$CHANNEL] Video #$VIDEO_NUMBER: Đã tạo & upload slides.pptx thành công!"
+          node scripts/send_telegram_message.js

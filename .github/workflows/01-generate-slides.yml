@@ -105,7 +105,7 @@ jobs:
       # ───────────────────────────────────────────────────────────
       - name: ☁️ Upload SLIDE to Drive
         run: |
-          export UPLOAD_FILES="slides.pptx"
+          export UPLOAD_FILES="slides.pptx timings.json"
           python scripts/upload_results_to_drive.py
 
       - name: "📩 Notify: Slides done"

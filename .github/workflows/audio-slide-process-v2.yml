@@ -1,4 +1,4 @@
-name: 🧩 Audio & Slide Pipeline -v2
+name: 🕹 Audio & Slide Pipeline -v2
 
 on:
   workflow_dispatch:

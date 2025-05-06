@@ -16,7 +16,8 @@ jobs:
   render-video:
     name: "Video | ${{ inputs.env }} | #${{ inputs.video_number }}"
     runs-on: ubuntu-latest
-    environment: { name: ${{ inputs.env }} }
+    environment:
+      name: ${{ inputs.env }}
 
     env:
       CHANNEL:         ${{ inputs.env }}

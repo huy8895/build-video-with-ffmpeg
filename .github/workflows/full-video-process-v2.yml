@@ -1,0 +1,52 @@
+name: 🧩 Full Video Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "Chọn môi trường (ose, mep, dde)"
+        required: true
+        default: "ose"
+        type: choice
+        options:
+          - ose
+          - mep
+          - dde
+          - kunzyPE
+      folder_url:
+        description: "Google Drive folder URL"
+        required: true
+      video_number:
+        description: "Số thứ tự video"
+        required: true
+
+jobs:
+  merge_adjust_transcribe:
+    name: "merge_adjust_transcribe ${{ inputs.env }} | Video: #${{ inputs.video_number }}"
+    uses: ./.github/workflows/merge_adjust_transcribe.yml
+    with:
+      env:          ${{ inputs.env }}
+      folder_url:   ${{ inputs.folder_url }}
+      video_number: ${{ inputs.video_number }}
+    secrets: inherit
+
+  generate_slides:
+    name: "generate_slides ${{ inputs.env }} | Video: #${{ inputs.video_number }}"
+    needs: merge_adjust_transcribe
+    uses: ./.github/workflows/01-generate-slides.yml
+    with:
+      env:          ${{ inputs.env }}
+      folder_url:   ${{ inputs.folder_url }}
+      video_number: ${{ inputs.video_number }}
+    secrets: inherit
+
+  render_video:
+    name: "render_video ${{ inputs.env }} | Video: #${{ inputs.video_number }}"
+    needs: generate_slides
+    uses: ./.github/workflows/02-render-video.yml
+    with:
+      env:          ${{ inputs.env }}
+      folder_url:   ${{ inputs.folder_url }}
+      video_number: ${{ inputs.video_number }}
+    secrets: inherit
+    environment: await-edit     # 👈 tạm dừng đợi approval

@@ -1,14 +1,14 @@
 {
   "background": "assets/DDE-background.jpg",
   "textOptions": {
-    "x": 1.5,
-    "y": 1,
-    "w": 8,
+    "x": 0.5,
+    "y": 0.5,
+    "w": 9,
     "h": 4.5,
-    "fontSize": 34,
-    "color": "f3e9c5",
-    "fontFace": "PT Serif",
-    "align": "center",
+    "fontSize": 40,
+    "color": "404040",
+    "fontFace": "Crimson Pro",
+    "align": "justify",
     "valign": "top",
     "wrap": true
   }

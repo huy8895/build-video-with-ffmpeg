@@ -79,7 +79,7 @@ jobs:
 
       - name: 📂 Download files (slides + audio + timing + background)
         run: |
-          python scripts/download_drive_folder_files.py slides.pptx transcript.srt audio_adjusted.mp3 background.jpg
+          python scripts/download_drive_folder_files.py slides.pptx transcript.srt audio_adjusted.mp3 background.jpg timings.json
           ls -lh input/
           cp input/* . || true
 

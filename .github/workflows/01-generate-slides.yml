@@ -112,3 +112,8 @@ jobs:
         run: |
           export MESSAGE="✅ [$CHANNEL] Video #$VIDEO_NUMBER: Đã tạo & upload slides.pptx thành công!"
           node scripts/send_telegram_message.js
+      - name: 📛 Notify Telegram if job failed
+        if: failure()
+        run: |
+          export MESSAGE="❌ Job 📑 Generate Slides from Google Drive thất bại! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | 📁 $FOLDER_URL"
+          node scripts/send_telegram_message.js

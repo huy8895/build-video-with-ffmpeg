@@ -175,6 +175,7 @@ jobs:
           export FOLDER_URL="$INTRO_FOLDER_URL"
           echo "Downloading intro.mp4 from FOLDER_URL=$FOLDER_URL"
           python scripts/download_drive_folder_files.py intro.mp4
+          cp input/intro.mp4 . || true
       
       - name: 🎬 Concatenate intro and main video (if enabled)
         if: ${{ env.ADD_INTRO == 'true' }}

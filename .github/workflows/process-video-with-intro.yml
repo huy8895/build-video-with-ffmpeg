@@ -57,7 +57,7 @@ jobs:
 
       - name: "📩 Notify: Start processing video"
         run: |
-          export MESSAGE="▶️ [$CHANNEL] Video #$VIDEO_NUMBER: Start 🎞 Process from Google Drive and Generate Slides + Video and Upload to YouTube !"
+          export MESSAGE="▶️ [$CHANNEL] Video #$VIDEO_NUMBER: Start ${{ github.workflow }}"
           node scripts/send_telegram_message.js
 
       - name: ✅ Validate CONFIG_JSON content
@@ -176,7 +176,11 @@ jobs:
           echo "Downloading intro.mp4 from FOLDER_URL=$FOLDER_URL"
           python scripts/download_drive_folder_files.py intro.mp4
           cp input/intro.mp4 . || true
-      
+
+      - name: 🔍 Check video compatibility
+        if: ${{ env.ADD_INTRO == 'true' }}
+        run: python scripts/check_video_compatibility.py intro.mp4 output.mp4
+
       - name: 🎬 Concatenate intro and main video (if enabled)
         if: ${{ env.ADD_INTRO == 'true' }}
         run: |
@@ -211,5 +215,5 @@ jobs:
       - name: 📛 Notify Telegram if job failed
         if: failure()
         run: |
-          export MESSAGE="❌ Job 🎞 Process from Google Drive and Generate Slides + Video and Upload to YouTube thất bại! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | 📁 $FOLDER_URL"
+          export MESSAGE="❌ Job ${{ github.workflow }} thất bại! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | 📁 $FOLDER_URL"
           node scripts/send_telegram_message.js

@@ -1,10 +1,10 @@
 {
   "background": "assets/MEP-background.jpg",
   "textOptions": {
-  "x": 0.3,
-  "y": 1.0,
-  "w": 6.2,
-  "h": 3.5,
+  "x": 0.411,
+  "y": 1.307,
+  "w": 5.677,
+  "h": 2.521,
     "fontSize": 30,
     "color": "#593526",
     "fontFace": "Comfortaa",

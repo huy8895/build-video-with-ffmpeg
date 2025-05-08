@@ -182,7 +182,10 @@ jobs:
         run: |
           echo "file 'intro.mp4'" > videos_to_concat.txt
           echo "file 'output.mp4'" >> videos_to_concat.txt
-          ffmpeg -f concat -safe 0 -i videos_to_concat.txt -c copy final_output.mp4
+          ffmpeg -f concat -safe 0 -i videos_to_concat.txt \
+          -c:v libx264 -preset slow -crf 18 \
+          -c:a aac -b:a 320k \
+          final_output.mp4
 
       - name: ☁️ Upload VIDEO to Google Drive
         if: ${{ env.UPLOAD_VIDEO_TO_DRIVE == 'true' }}

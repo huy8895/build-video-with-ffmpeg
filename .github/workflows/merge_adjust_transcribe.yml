@@ -1,4 +1,4 @@
-name: 🎧 Merge, Adjust Speed, and Transcribe MP3
+name: 🎧 Process Audio
 
 on:
   workflow_call:
@@ -55,7 +55,7 @@ jobs:
 
       - name: "📩 Notify: Start processing AUDIO"
         run: |
-          export MESSAGE="▶️ [$CHANNEL] Video #$VIDEO_NUMBER: Start 🎧 Merge, Adjust Speed, and Transcribe MP3"
+          export MESSAGE="Start ${{ github.workflow }} [$CHANNEL] Video #$VIDEO_NUMBER "
           node scripts/send_telegram_message.js
       - name: 🧪 Parse CONFIG_JSON into environment variables
         id: parse
@@ -126,10 +126,10 @@ jobs:
 
       - name: 🚀 Gửi tin nhắn Telegram
         run: |
-          export MESSAGE="🎙Done Process Audio ! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | WhisperModel: $WHISPER_MODEL | Speed: $SPEED | Lang: $LANGUAGE | ✅ Done! 📁 $FOLDER_URL"
+          export MESSAGE="✅Done ${{ github.workflow }} ! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | WhisperModel: $WHISPER_MODEL | Speed: $SPEED | Lang: $LANGUAGE | ✅ Done! 📁 $FOLDER_URL"
           node scripts/send_telegram_message.js
       - name: 📛 Notify Telegram if job failed
         if: failure()
         run: |
-          export MESSAGE="❌ Job 🎧 Merge, Adjust Speed, and Transcribe MP3 thất bại! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | 📁 $FOLDER_URL"
+          export MESSAGE="❌ ${{ github.workflow }} thất bại! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | 📁 $FOLDER_URL"
           node scripts/send_telegram_message.js

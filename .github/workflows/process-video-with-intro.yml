@@ -181,15 +181,25 @@ jobs:
         if: ${{ env.ADD_INTRO == 'true' }}
         run: python scripts/check_video_compatibility.py intro.mp4 output.mp4
 
-      - name: 🎬 Concatenate intro and main video (if enabled)
+      - name: 🛠 Normalize intro.mp4 to match output.mp4
         if: ${{ env.ADD_INTRO == 'true' }}
         run: |
-          echo "file 'intro.mp4'" > videos_to_concat.txt
-          echo "file 'output.mp4'" >> videos_to_concat.txt
-          ffmpeg -f concat -safe 0 -i videos_to_concat.txt \
-          -c:v libx264 -preset slow -crf 18 \
-          -c:a aac -b:a 320k \
-          final_output.mp4
+          ffmpeg -i intro.mp4 -r 25 -ar 24000 -ac 1 \
+            -c:v libx264 -preset slow -crf 18 \
+            -c:a aac -b:a 192k \
+            intro_normalized.mp4
+
+      - name: 🎬 Concatenate intro and main video
+        if: ${{ env.ADD_INTRO == 'true' }}
+        run: |
+          ffmpeg \
+            -i intro_normalized.mp4 \
+            -i output.mp4 \
+            -filter_complex "[0:v:0][0:a:0][1:v:0][1:a:0]concat=n=2:v=1:a=1[outv][outa]" \
+            -map "[outv]" -map "[outa]" \
+            -c:v libx264 -preset slow -crf 18 \
+            -c:a aac -b:a 320k \
+            final_output.mp4
 
       - name: ☁️ Upload VIDEO to Google Drive
         if: ${{ env.UPLOAD_VIDEO_TO_DRIVE == 'true' }}

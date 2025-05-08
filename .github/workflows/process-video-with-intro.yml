@@ -1,0 +1,211 @@
+name: 🎭 Process video with intro
+
+on:
+  workflow_call:
+    inputs:
+      env:
+        required: true
+        type: string
+      folder_url:
+        required: true
+        type: string
+      video_number:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "Chọn môi trường (ose, mep, dde)"
+        required: true
+        default: "ose"
+        type: choice
+        options:
+          - ose
+          - mep
+          - dde
+      video_number:
+        description: "Video number"
+        required: true
+        default: "0"
+      folder_url:
+        description: "Google Drive folder URL"
+        required: true
+
+jobs:
+  full-process:
+    name: "Video  Channel: ${{ inputs.env }} | Video: #${{ inputs.video_number }}"
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.env }}
+
+    env:
+      CHANNEL: ${{ inputs.env }}
+      FOLDER_URL: ${{ inputs.folder_url }}
+      VIDEO_NUMBER: ${{ inputs.video_number }}
+      CONFIG_JSON: ${{ vars.CONFIG_JSON }}
+      YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+      YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+      YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+      GG_REFRESH_TOKEN: ${{ secrets.GG_REFRESH_TOKEN }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      YOUTUBE_META_JSON: ${{ vars.YOUTUBE_META_JSON }}
+
+    steps:
+      - name: 📅 Checkout source code
+        uses: actions/checkout@v4
+
+      - name: "📩 Notify: Start processing video"
+        run: |
+          export MESSAGE="▶️ [$CHANNEL] Video #$VIDEO_NUMBER: Start 🎞 Process from Google Drive and Generate Slides + Video and Upload to YouTube !"
+          node scripts/send_telegram_message.js
+
+      - name: ✅ Validate CONFIG_JSON content
+        run: |
+          echo "$CONFIG_JSON" > config.json
+          if ! jq -e '(.dpi and .resolution and .config_key and .upload_to_youtube and .maxChar and .minChar and .matchThreshold and .maxOffset)' config.json > /dev/null; then
+            echo "❌ CONFIG_JSON is missing required fields. Please check JSON structure." && exit 1
+          fi
+
+      - name: 🤖 Parse CONFIG_JSON into environment variables
+        run: |
+          echo "$CONFIG_JSON" > config.json
+          echo "DPI=$(jq -r '.dpi' config.json)" >> $GITHUB_ENV
+          echo "RESOLUTION=$(jq -r '.resolution' config.json)" >> $GITHUB_ENV
+          echo "CONFIG_KEY=$(jq -r '.config_key' config.json)" >> $GITHUB_ENV
+          echo "UPLOAD_TO_YOUTUBE=$(jq -r '.upload_to_youtube' config.json)" >> $GITHUB_ENV
+          echo "UPLOAD_SLIDE_TO_DRIVE=$(jq -r '.upload_slide_to_drive' config.json)" >> $GITHUB_ENV
+          echo "UPLOAD_VIDEO_TO_DRIVE=$(jq -r '.upload_video_to_drive' config.json)" >> $GITHUB_ENV
+          echo "MAX_CHAR=$(jq -r '.maxChar' config.json)" >> $GITHUB_ENV
+          echo "MIN_CHAR=$(jq -r '.minChar' config.json)" >> $GITHUB_ENV
+          echo "MATCH_THRESHOLD=$(jq -r '.matchThreshold' config.json)" >> $GITHUB_ENV
+          echo "MAX_OFFSET=$(jq -r '.maxOffset' config.json)" >> $GITHUB_ENV
+          echo "ADD_INTRO=$(jq -r '.add_intro' config.json)" >> $GITHUB_ENV
+          echo "INTRO_FOLDER_URL=$(jq -r '.intro_folder_url' config.json)" >> $GITHUB_ENV
+      - name: 🚀 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 📦 Install Node + Python dependencies
+        run: |
+          npm install pptxgenjs fs-extra minimist compromise googleapis
+          pip install --upgrade google-api-python-client google-auth google-auth-oauthlib
+
+      - name: 📂 Download files from Google Drive folder
+        run: |
+          python scripts/download_drive_folder_files.py transcript.srt content.txt audio_adjusted.mp3 background.jpg
+          echo "✅ Files downloaded:"
+          ls -lh input/
+          echo "✅ Copying files to root for compatibility..."
+          cp input/*.mp3 . || true
+          cp input/*.srt . || true
+          cp input/*.txt . || true
+          cp input/background.jpg . || true  # 👈 THÊM DÒNG NÀY
+
+      - name: 🧠 Generate slides-timing.json
+        run: |
+          node scripts/generate_timing_json_with_parser.js \
+            --srt transcript.srt \
+            --content content.txt \
+            --maxChar "$MAX_CHAR" \
+            --minChar "$MIN_CHAR" \
+            --matchThreshold "$MATCH_THRESHOLD" \
+            --maxOffset "$MAX_OFFSET"
+
+      - name: 🗓 Rename slides-timing.json to timings.json
+        run: mv slides-timing.json timings.json
+
+      - name: 🌟 Install font
+        run: |
+          mkdir -p ~/.fonts
+          cp assets/fonts/*.ttf ~/.fonts/
+          fc-cache -f -v
+
+      - name: 💪 Install slide & video dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libreoffice \
+            poppler-utils \
+            ffmpeg
+
+      - name: 📜 Generate PPTX from timing
+        run: node scripts/gen_slides.js
+        env:
+          CONFIG_KEY: ${{ env.CONFIG_KEY }}
+
+      - name: ☁️ Upload SLIDE to Google Drive
+        if: ${{ env.UPLOAD_SLIDE_TO_DRIVE == 'true' }}
+        run: |
+          export UPLOAD_FILES="slides.pptx"
+          python scripts/upload_results_to_drive.py
+
+      - name: 📄 Convert PPTX to PDF
+        run: |
+          mkdir -p slides_pdf
+          soffice --headless --convert-to pdf --outdir slides_pdf slides.pptx
+      - name: 🖼 Convert PDF to PNG
+        run: |
+          mkdir -p slides_png
+          pdftoppm -png -r "$DPI" slides_pdf/slides.pdf slides_png/slide
+
+      - name: "📸 Debug: List slides_png content"
+        run: ls -lh slides_png
+
+      - name: 📝 Generate input.txt
+        run: IMAGES_DIR=slides_png node scripts/build_input_list.js
+
+      - name: 🎨 Render video (if enabled)
+        if: ${{ env.UPLOAD_VIDEO_TO_DRIVE == 'true' || env.UPLOAD_TO_YOUTUBE == 'true' }}
+        run: |
+          case "$RESOLUTION" in
+            "720p")  SIZE="1280:720" ;;
+            "1080p") SIZE="1920:1080" ;;
+            *)       SIZE="854:480" ;;
+          esac
+          ffmpeg -y -f concat -safe 0 -i input.txt -i audio_adjusted.mp3 \
+            -vf "scale=$SIZE,format=yuv420p" \
+            -c:v libx264 -preset slow -crf 18 \
+            -c:a aac -b:a 320k \
+            -shortest output.mp4
+      - name: 📂 Download INTRO video (if enabled)
+        if: ${{ env.ADD_INTRO == 'true' }}
+        run: |
+          export FOLDER_URL="$INTRO_FOLDER_URL"
+          echo "Downloading intro.mp4 from FOLDER_URL=$FOLDER_URL"
+          python scripts/download_drive_folder_files.py intro.mp4
+      
+      - name: 🎬 Concatenate intro and main video (if enabled)
+        if: ${{ env.ADD_INTRO == 'true' }}
+        run: |
+          echo "file 'intro.mp4'" > videos_to_concat.txt
+          echo "file 'output.mp4'" >> videos_to_concat.txt
+          ffmpeg -f concat -safe 0 -i videos_to_concat.txt -c copy final_output.mp4
+
+      - name: ☁️ Upload VIDEO to Google Drive
+        if: ${{ env.UPLOAD_VIDEO_TO_DRIVE == 'true' }}
+        run: |
+          export UPLOAD_FILES="output.mp4"
+          python scripts/upload_results_to_drive.py
+
+      - name: 🚀 Upload to YouTube (if enabled)
+        if: ${{ env.UPLOAD_TO_YOUTUBE == 'true' }}
+        run: |
+          if [ "$ADD_INTRO" = "true" ]; then
+            cp final_output.mp4 output.mp4
+          fi
+          python scripts/upload_youtube.py
+
+      - name: 📩 Send Telegram message with YouTube link (if available)
+        if: ${{ env.UPLOAD_TO_YOUTUBE == 'true' }}
+        run: |
+          YT_LINK=$(cat yt_link.txt)
+          export MESSAGE="🎉Channel [$CHANNEL] Video #$VIDEO_NUMBER đã được upload! 📺 Xem tại: $YT_LINK"
+          node scripts/send_telegram_message.js
+
+      - name: 📛 Notify Telegram if job failed
+        if: failure()
+        run: |
+          export MESSAGE="❌ Job 🎞 Process from Google Drive and Generate Slides + Video and Upload to YouTube thất bại! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | 📁 $FOLDER_URL"
+          node scripts/send_telegram_message.js

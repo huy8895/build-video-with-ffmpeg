@@ -2,68 +2,98 @@
 <html>
 
 <head>
-    <script src="https://p.trellocdn.com/power-up.min.js"></script>
-    <script src="popup.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            font-size: 13px;
-            margin: 0;
-            padding: 12px;
-            background-color: #fff;
-            color: #2c2c2c;
-        }
+  <meta charset="utf-8">
+  <title>Build video</title>
+  <script src="https://p.trellocdn.com/power-up.min.js"></script>
+  <script src="popup.js" defer></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 13px;
+      margin: 0;
+      padding: 12px;
+      background-color: #fff;
+      color: #2c2c2c;
+    }
 
-        label {
-            display: block;
-            margin-bottom: 4px;
-            font-weight: 600;
-        }
+    label {
+      display: block;
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
 
-        input,
-        select {
-            width: 100%;
-            padding: 6px 8px;
-            margin-bottom: 10px;
-            border: 1px solid #ccc;
-            border-radius: 3px;
-            font-size: 13px;
-            box-sizing: border-box;
-        }
+    input,
+    select {
+      width: 100%;
+      padding: 6px 8px;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      font-size: 13px;
+      box-sizing: border-box;
+    }
 
-        button {
-            width: 100%;
-            background-color: #0079bf;
-            color: #fff;
-            border: none;
-            padding: 8px 12px;
-            font-weight: bold;
-            border-radius: 3px;
-            cursor: pointer;
-        }
+    button {
+      width: 100%;
+      background-color: #0079bf;
+      color: #fff;
+      border: none;
+      padding: 8px 12px;
+      font-weight: bold;
+      border-radius: 3px;
+      cursor: pointer;
+      position: relative;
+    }
 
-        button:hover {
-            background-color: #026aa7;
-        }
-    </style>
+    button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+
+    .spinner {
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid white;
+      border-radius: 50%;
+      width: 14px;
+      height: 14px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    #status {
+      margin-top: 10px;
+      font-weight: bold;
+      text-align: center;
+      color: green;
+    }
+  </style>
 </head>
 
 <body>
-    <label>Google Drive Folder:</label>
-    <input type="text" id="driveLink" placeholder="https://drive.google.com/..." />
+  <label>Google Drive Folder:</label>
+  <input type="text" id="driveLink" placeholder="https://drive.google.com/..." />
 
-    <label>Video Name:</label>
-    <input type="text" id="videoName" placeholder="My YouTube Video Title" />
+  <label>Video Name:</label>
+  <input type="text" id="videoName" placeholder="My YouTube Video Title" />
 
-    <label>Flow:</label><br>
-    <select id="flow" style="width: 95%">
-        <option value="full-video-process">Full process video</option>
-        <option value="1.1process-audio">1.1 process audio</option>
-        <option value="1.2process-video">1.2 process video</option>
+  <label>Flow:</label>
+  <select id="flow">
+    <option value="full-video-process">Full process video</option>
+    <option value="1.1process-audio">1.1 process audio</option>
+    <option value="1.2process-video">1.2 process video</option>
         <option value="2.1process-audio-slide">2.1 process audio&slide</option>
-        <option value="2.2process-video-from-slide">2.1 process video from Slide</option>
-    </select><br><br>
-    <button id="submit">Submit</button>
-    <script src="popup.js"></script>
+        <option value="2.2process-video-from-slide">2.2 process video from Slide</option>
+    </select>
+  <button id="submit">Submit</button>
+
+  <div id="status"></div>
 </body>
+
 </html>

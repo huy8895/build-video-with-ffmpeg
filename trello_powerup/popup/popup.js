@@ -2,11 +2,12 @@ const t = TrelloPowerUp.iframe();
 
 window.onload = function () {
   const submitBtn = document.getElementById('submit');
+  const statusDiv = document.getElementById('status');
 
   submitBtn.addEventListener('click', async function () {
-    // 👉 Chặn click trùng
     submitBtn.disabled = true;
-    submitBtn.innerText = "Sending...";
+    submitBtn.innerHTML = `<span class="spinner"></span>Sending...`;
+    statusDiv.textContent = "";
 
     const driveLink = document.getElementById('driveLink').value;
     const videoName = document.getElementById('videoName').value;
@@ -36,26 +37,27 @@ window.onload = function () {
 
       console.log("✅ Workflow triggered via Cloudflare Worker");
 
-      // ✅ Lưu vào Trello card
       await t.set("card", "shared", {
         driveLink,
         videoName,
         flow
       });
 
-      t.closePopup();
+      // ✅ Show success message and prevent accidental retry
+      submitBtn.innerHTML = "✅ Sent!";
+      statusDiv.textContent = "Workflow triggered successfully!";
+
+      // Optional: close popup after short delay
+      setTimeout(() => t.closePopup(), 1000);
 
     } catch (err) {
       console.error("❌ Failed to call Worker:", err);
       alert("Something went wrong. Please try again.");
-      
-      // 🔁 Cho phép thử lại
       submitBtn.disabled = false;
-      submitBtn.innerText = "Submit";
+      submitBtn.textContent = "Submit";
     }
   });
 
-  // 🔁 Tự động điền lại nếu đã lưu
   t.render(async function () {
     const saved = await t.get("card", "shared");
 

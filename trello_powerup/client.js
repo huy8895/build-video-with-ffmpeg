@@ -15,6 +15,8 @@ window.TrelloPowerUp.initialize({
   'card-badges': function (t, options) {
     return t.get('card', 'shared', 'flow')
       .then(function (flow) {
+        if (!flow) return [];
+
         return [{
           text: flow ? '✔️ ' + flow : 'Waiting for build',
           color: flow ? 'green' : 'orange', // hoặc 'green', 'red', 'purple', 'sky', 'orange'
@@ -25,7 +27,6 @@ window.TrelloPowerUp.initialize({
   'card-detail-badges': function (t, options) {
     return t.get('card', 'shared')
       .then(function (data) {
-        if (!data || !data.flow) return [];
 
         return [{
           title: 'Build Video status',

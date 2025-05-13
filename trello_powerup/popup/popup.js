@@ -21,27 +21,24 @@ window.onload = function () {
       triggeredBy: "trello_powerup"
     };
 
-    // 🔄 Gửi tới Google Apps Script
-    const scriptURL = "https://script.google.com/macros/s/AKfycbzGNRldKyM4k73MSWaaeL0mPhjzLNF5REvYXmeNyi-MxuCRkxoi4z16SHBPxOa6bXw/exec";
-
+    // ✅ Gọi tới Cloudflare Worker
     try {
-      const response = await fetch(scriptURL, {
+      await fetch("https://flat-smoke-939b.huytvdev22.workers.dev/", {
         method: "POST",
-        mode: "no-cors",
         headers: {
           "Content-Type": "application/json"
         },
         body: JSON.stringify(payload)
       });
 
-      const result = await response.json();
-      console.log("✅ Script response:", result);
+      console.log("✅ Workflow triggered via Cloudflare Worker");
+
     } catch (err) {
-      console.error("❌ Failed to call Apps Script:", err);
+      console.error("❌ Failed to call Worker:", err);
       alert("Something went wrong. Please try again.");
     }
 
-    // ✅ Lưu lại vào card
+    // ✅ Lưu vào Trello card
     await t.set("card", "shared", {
       driveLink,
       videoName,
@@ -51,7 +48,7 @@ window.onload = function () {
     t.closePopup();
   });
 
-  // 🔁 Khi popup mở → tự điền lại dữ liệu đã lưu
+  // Tự động điền lại nếu đã lưu từ trước
   t.render(async function () {
     const saved = await t.get("card", "shared");
 

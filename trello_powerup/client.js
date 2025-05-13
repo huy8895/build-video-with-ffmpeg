@@ -16,8 +16,8 @@ window.TrelloPowerUp.initialize({
     return t.get('card', 'shared', 'flow')
       .then(function (flow) {
         return [{
-          text: flow,
-          color: 'blue', // hoặc 'green', 'red', 'purple', 'sky', 'orange'
+          text: flow ? '✔️ ' + flow : '⚠️ Video not generated',
+          color: flow ? 'green' : 'orange', // hoặc 'green', 'red', 'purple', 'sky', 'orange'
           icon: 'https://cdn-icons-png.flaticon.com/512/25/25231.png'
         }];
       });
@@ -30,7 +30,7 @@ window.TrelloPowerUp.initialize({
 
         return [{
           title: 'Build Status',
-          text: data.flow,
+          text: data.flow ? '✔️ ' + data.flow : '⚠️ Video not generated',
           callback: function (t) {
             return t.popup({
               title: 'Build Progress',

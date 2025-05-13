@@ -22,7 +22,7 @@ window.onload = function () {
     };
 
     // 🔄 Gửi tới Google Apps Script
-    const scriptURL = "https://script.google.com/macros/s/AKfycbyhcqc4n2GFWMJbReZ0Z4ioCcJDr8098dnI6y-CpBlAWNqFiBPhxej7GDl9kNhQdPKG/exec";
+    const scriptURL = "https://script.google.com/macros/s/AKfycbzGNRldKyM4k73MSWaaeL0mPhjzLNF5REvYXmeNyi-MxuCRkxoi4z16SHBPxOa6bXw/exec";
 
     try {
       const response = await fetch(scriptURL, {

@@ -1,4 +1,4 @@
-name: 🕹 Audio & Slide Pipeline -v2
+ name: 🕹 Audio & Slide Pipeline -v2
 
 on:
   workflow_dispatch:
@@ -23,7 +23,7 @@ on:
 jobs:
   merge_adjust_transcribe:
     name: "merge_adjust_transcribe ${{ inputs.env }} | Video: #${{ inputs.video_number }}"
-    uses: ./.github/workflows/merge_adjust_transcribe.yml
+    uses: ./.github/workflows/1.1process-audio.yml
     with:
       env:          ${{ inputs.env }}
       folder_url:   ${{ inputs.folder_url }}

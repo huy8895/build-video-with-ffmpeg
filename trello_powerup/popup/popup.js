@@ -4,6 +4,10 @@ window.onload = function () {
   const submitBtn = document.getElementById('submit');
 
   submitBtn.addEventListener('click', async function () {
+    // 👉 Chặn click trùng
+    submitBtn.disabled = true;
+    submitBtn.innerText = "Sending...";
+
     const driveLink = document.getElementById('driveLink').value;
     const videoName = document.getElementById('videoName').value;
     const flow = document.getElementById('flow').value;
@@ -21,7 +25,6 @@ window.onload = function () {
       triggeredBy: "trello_powerup"
     };
 
-    // ✅ Gọi tới Cloudflare Worker
     try {
       await fetch("https://flat-smoke-939b.huytvdev22.workers.dev/", {
         method: "POST",
@@ -33,22 +36,26 @@ window.onload = function () {
 
       console.log("✅ Workflow triggered via Cloudflare Worker");
 
+      // ✅ Lưu vào Trello card
+      await t.set("card", "shared", {
+        driveLink,
+        videoName,
+        flow
+      });
+
+      t.closePopup();
+
     } catch (err) {
       console.error("❌ Failed to call Worker:", err);
       alert("Something went wrong. Please try again.");
+      
+      // 🔁 Cho phép thử lại
+      submitBtn.disabled = false;
+      submitBtn.innerText = "Submit";
     }
-
-    // ✅ Lưu vào Trello card
-    await t.set("card", "shared", {
-      driveLink,
-      videoName,
-      flow
-    });
-
-    t.closePopup();
   });
 
-  // Tự động điền lại nếu đã lưu từ trước
+  // 🔁 Tự động điền lại nếu đã lưu
   t.render(async function () {
     const saved = await t.get("card", "shared");
 

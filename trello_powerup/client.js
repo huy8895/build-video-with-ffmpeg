@@ -6,7 +6,7 @@ window.TrelloPowerUp.initialize({
       callback: function (t) {
         return t.popup({
           title: "Build video",
-          url: "popup.html", 
+          url: "popup/popup.html", 
           height: 200
         });
       }

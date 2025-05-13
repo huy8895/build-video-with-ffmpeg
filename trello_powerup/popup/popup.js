@@ -27,6 +27,7 @@ window.onload = function () {
     try {
       const response = await fetch(scriptURL, {
         method: "POST",
+        mode: "no-cors",
         headers: {
           "Content-Type": "application/json"
         },

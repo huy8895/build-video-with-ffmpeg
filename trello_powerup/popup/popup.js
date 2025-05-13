@@ -1,16 +1,19 @@
 
 
-window.onload = function () {
-  const iframe = TrelloPowerUp.iframe();
+const t = TrelloPowerUp.iframe();
 
-  document.getElementById('submit').addEventListener('click', async function() {
+window.onload = function () {
+  const submitBtn = document.getElementById('submit');
+
+  submitBtn.addEventListener('click', async function () {
     const driveLink = document.getElementById('driveLink').value;
     const videoName = document.getElementById('videoName').value;
     const flow = document.getElementById('flow').value;
 
-    const card = await iframe.card('name', 'id');
-    const board = await iframe.board('name');
+    const card = await t.card('name', 'id');
+    const board = await t.board('name');
 
+    // Gửi đi webhook
     await fetch("https://eo92jfgk4r4masz.m.pipedream.net", {
       method: "POST",
       headers: {
@@ -27,7 +30,11 @@ window.onload = function () {
       })
     });
 
-    iframe.closePopup();
+    t.closePopup();
+  });
+
+  // Giúp popup vừa khít theo nội dung
+  t.render(() => {
+    t.sizeTo("body").done();
   });
 };
-

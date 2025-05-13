@@ -4,14 +4,54 @@
 <head>
     <script src="https://p.trellocdn.com/power-up.min.js"></script>
     <script src="popup.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            padding: 16px;
+            background-color: #f9f9f9;
+        }
+
+        label {
+            display: block;
+            margin-top: 12px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 6px 10px;
+            margin-top: 4px;
+            margin-bottom: 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: #0079bf;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #026aa7;
+        }
+    </style>
 </head>
 
 <body>
-    <label>Google Drive Folder:</label><br>
-    <input type="text" id="driveLink" style="width: 95%"><br><br>
+    <label>Google Drive Folder:</label>
+    <input type="text" id="driveLink" placeholder="https://drive.google.com/..." />
 
-    <label>Video Name:</label><br>
-    <input type="text" id="videoName" style="width: 95%"><br><br>
+    <label>Video Name:</label>
+    <input type="text" id="videoName" placeholder="My YouTube Video Title" />
 
     <label>Flow:</label><br>
     <select id="flow" style="width: 95%">

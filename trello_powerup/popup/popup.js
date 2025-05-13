@@ -11,23 +11,36 @@ window.onload = function () {
     const card = await t.card('name', 'id');
     const board = await t.board('name');
 
-    // Gửi tới webhook
-    await fetch("https://eo92jfgk4r4masz.m.pipedream.net", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        cardName: card.name,
-        cardId: card.id,
-        boardName: board.name,
-        driveLink,
-        videoName,
-        flow
-      })
-    });
+    const payload = {
+      cardName: card.name,
+      cardId: card.id,
+      boardName: board.name,
+      driveLink,
+      videoName,
+      flow,
+      triggeredBy: "trello_powerup"
+    };
 
-    // Lưu lại vào card
+    // 🔄 Gửi tới Google Apps Script
+    const scriptURL = "https://script.google.com/macros/s/AKfycbyhcqc4n2GFWMJbReZ0Z4ioCcJDr8098dnI6y-CpBlAWNqFiBPhxej7GDl9kNhQdPKG/exec";
+
+    try {
+      const response = await fetch(scriptURL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+      console.log("✅ Script response:", result);
+    } catch (err) {
+      console.error("❌ Failed to call Apps Script:", err);
+      alert("Something went wrong. Please try again.");
+    }
+
+    // ✅ Lưu lại vào card
     await t.set("card", "shared", {
       driveLink,
       videoName,
@@ -37,7 +50,7 @@ window.onload = function () {
     t.closePopup();
   });
 
-  // Khi popup render lần đầu → tự điền lại dữ liệu
+  // 🔁 Khi popup mở → tự điền lại dữ liệu đã lưu
   t.render(async function () {
     const saved = await t.get("card", "shared");
 

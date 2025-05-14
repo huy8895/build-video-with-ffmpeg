@@ -13,6 +13,7 @@ on:
           - mep
           - dde
           - kunzyPE
+          - AnkEL
       folder_url:
         description: "Google Drive folder URL"
         required: true

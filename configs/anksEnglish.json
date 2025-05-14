@@ -1,0 +1,15 @@
+{
+  "background": "assets/AEL-background.jpg",
+  "textOptions": {
+    "x": 1.693,
+    "y": 1.875,
+    "w": 3.188,
+    "h": 0.635,
+    "fontSize": 30,
+    "color": "000000",
+    "fontFace": "Open Sans",
+    "align": "justify",
+    "valign": "top",
+    "wrap": true
+  }
+}

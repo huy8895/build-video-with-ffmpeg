@@ -143,33 +143,6 @@ function processRawContent(content, maxCharLimit, minCharLimit = 0) {
     }
   }
 
-  function splitChunkSmart(chunk, maxCharLimit) {
-    const parts = chunk.split(/\s*,\s*/); // tách theo dấu phẩy (loại bỏ khoảng trắng hai bên)
-    const slices = [];
-
-    parts.forEach(part => {
-      if (part.length <= maxCharLimit) {
-        slices.push(part.trim());
-      } else {
-        // Fallback: tách tiếp xuống word
-        const words = part.split(/\s+/);
-        let piece = "";
-        words.forEach(word => {
-          if ((piece + word + " ").length > maxCharLimit) {
-            slices.push(piece.trim());
-            piece = "";
-          }
-          piece += word + " ";
-        });
-        if (piece.trim()) {
-          slices.push(piece.trim());
-        }
-      }
-    });
-
-    return slices;
-  }
-
   // 1. Tách văn bản thành câu
   const sentences = nlp(content)
   .sentences()

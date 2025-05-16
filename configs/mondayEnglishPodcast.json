@@ -1,10 +1,11 @@
 {
   "background": "assets/MEP-background.jpg",
+  "isOnlySubtitle": true,
   "textOptions": {
-  "x": 0.4,
-  "y": 1.307,
-  "w": 5.677,
-  "h": 2.313,
+    "x": 0.4,
+    "y": 1.307,
+    "w": 5.677,
+    "h": 2.313,
     "fontSize": 25,
     "color": "#593526",
     "fontFace": "Comfortaa",

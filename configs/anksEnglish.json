@@ -1,5 +1,6 @@
 {
   "background": "assets/AEL-background.jpg",
+  "isOnlySubtitle": true,
   "textOptions": {
     "x": 1.693,
     "y": 3,

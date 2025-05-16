@@ -25,15 +25,12 @@ if (fs.existsSync("background.jpg")) {
 
 // ---- Helper to strip punctuation / “special characters” -------------------
 function cleanText(raw) {
-  // compromise.normalize removes punctuation & non-ASCII when options are true
   return nlp(raw)
-    .normalize({
-      punctuation: true,   // drop punctuation & symbols
-      unicode:     true,   // simplify fancy Unicode
-      whitespace:  true,   // collapse extra spaces / newlines
-    })
-    .out("text")
-    .trim();
+  .normalize({punctuation: true, unicode: true, whitespace: true})
+  .out('text')
+  .replace(/[^\w\s]|_/g, '')           // xoá kí tự đặc biệt còn lại
+  .replace(/\s+/g, ' ')
+  .trim();
 }
 
 // ---- Build PPTX -----------------------------------------------------------

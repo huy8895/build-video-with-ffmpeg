@@ -146,111 +146,104 @@ function fuzzyMatchAverage(arr1, arr2) {
  *      • Pass ngược  (phải → trái)  kéo từ slide trước.
  *    Nhờ đó hầu như không còn slide < minCharLimit trừ phi thực sự không còn chỗ.
  */
-/**
- * Split raw text into slides whose length ∈ (½·maxCharLimit, maxCharLimit]
- * using inverse-Fibonacci word-ratios when a sentence is too long.
- *
- * @param {string} content        Full text
- * @param {number} maxCharLimit   Max characters per slide
- * @returns {string[]}            Slides
- */
-function processRawContent(content, maxCharLimit, minCharLimit) {
-    const halfMax    = minCharLimit ? minCharLimit : maxCharLimit / 2;
+function processRawContent(content, maxCharLimit, minCharLimit = 0) {
+    const slides = [];
 
-    /* ---------- inverse Fibonacci ratios: ½, ⅓, ⅕, ⅛, ⅒, … ---------- */
-    const fib = [1, 1];
-    while (fib.length < 12) fib.push(fib.at(-1) + fib.at(-2));
-    const ratios = fib.slice(2).map(f => 1 / f);            // [½, ⅓, ⅕, ⅛, …]
+    /* ---------------- helper: push(), tự cắt token dài ---------------- */
+    const push = (chunk) => {
+        chunk = chunk.trim();
+        if (!chunk) return;
 
-    /* ---------- helper: pick a chunk of words that keeps slide in range ---------- */
-    function takeChunk(words, currentLen) {
-        const total = words.length;
-        // 1) ưu tiên đoạn khiến slide đạt ngay ≥ halfMax
-        for (const r of ratios) {
-            const cnt = Math.max(1, Math.floor(total * r));
-            const chunk = words.slice(0, cnt).join(" ");
-            const len   = currentLen + chunk.length;
-            if (len <= maxCharLimit && len >= halfMax) return {chunk, cnt};
+        if (chunk.length <= maxCharLimit) {
+            slides.push(chunk);
+            return;
         }
-        // 2) nếu không đạt được ≥ halfMax, lấy đoạn lớn nhất vẫn ≤ maxCharLimit
-        for (let cnt = total; cnt >= 1; --cnt) {
-            const chunk = words.slice(0, cnt).join(" ");
-            if (currentLen + chunk.length <= maxCharLimit)
-                return {chunk, cnt};
-        }
-        // Không lấy được gì (hiếm): trả 0
-        return {chunk: "", cnt: 0};
-    }
 
-    /* ---------- main loop ---------- */
-    const slides     = [];
-    let currentSlide = "";
+        // Token-wise split cho chuỗi quá dài
+        const tokens = nlp(chunk).terms().out("array");
+        let piece = "";
+        tokens.forEach((tok, idx) => {
+            const sep = idx < tokens.length - 1 ? " " : "";
+            if (tok.length > maxCharLimit) {
+                if (piece.trim()) {
+                    slides.push(piece.trim());
+                    piece = "";
+                }
+                for (let s = 0; s < tok.length; s += maxCharLimit) {
+                    slides.push(tok.slice(s, s + maxCharLimit));
+                }
+                return;
+            }
+            if ((piece + tok + sep).length > maxCharLimit) {
+                slides.push(piece.trim());
+                piece = "";
+            }
+            piece += tok + sep;
+        });
+        if (piece.trim()) slides.push(piece.trim());
+    };
 
+    /* ---------------- STEP 1: tách theo câu ---------------- */
     const sentences = nlp(content).sentences().out("array");
-    for (let sentence of sentences) {
-        sentence = sentence.trim();
-        if (!sentence) continue;
+    let current = "";
 
-        /* ===== 1. slide hiện tại RỖNG ===== */
-        if (currentSlide === "") {
-            if (sentence.length <= maxCharLimit) {
-                currentSlide = sentence + " ";
-                continue;
+    sentences.forEach((sent) => {
+        const add = sent.trim() + " ";
+        if ((current + add).length <= maxCharLimit) {
+            current += add;
+        } else {
+            push(current);
+            current = add;
+        }
+    });
+    push(current); // slide cuối
+
+    /* ---------------- STEP 2: khử slide ngắn ---------------- */
+    if (minCharLimit > 0) {
+        /* —— Pass thuận: kéo từ slide kế —— */
+        for (let i = 0; i < slides.length - 1; i++) {
+            if (slides[i].length >= minCharLimit) continue;
+
+            let nextWords = slides[i + 1].split(/\s+/);
+            while (
+                slides[i].length < minCharLimit &&
+                nextWords.length &&
+                slides[i].length + 1 + nextWords[0].length <= maxCharLimit
+                ) {
+                slides[i] += (slides[i].endsWith(" ") ? "" : " ") + nextWords.shift();
             }
-            // câu quá dài → cắt theo tỉ lệ nghịch-Fib
-            let words = nlp(sentence).terms().out("array");
-            while (words.length) {
-                const {chunk, cnt} = takeChunk(words, 0);
-                currentSlide = chunk + " ";
-                slides.push(currentSlide.trim());
-                currentSlide = "";
-                words = words.slice(cnt);
+            slides[i + 1] = nextWords.join(" ");
+            if (!slides[i + 1]) {
+                slides.splice(i + 1, 1);
+                i--; // giữ nguyên chỉ số để xét lại slide hiện tại
             }
-            continue;
         }
 
-        /* ===== 2. slide đã có nội dung ===== */
-        if (currentSlide.length + sentence.length <= maxCharLimit) {
-            // thêm nguyên câu
-            currentSlide += sentence + " ";
-            continue;
-        }
+        /* —— Pass ngược: kéo từ slide trước —— */
+        for (let i = slides.length - 1; i > 0; i--) {
+            if (slides[i].length >= minCharLimit) continue;
 
-        // 2.1 nếu thêm cả câu sẽ vượt max → phải chia
-        let words = nlp(sentence).terms().out("array");
-
-        // 2.1.a slide chưa đủ "dày" (< halfMax) → bồi cho đạt ≥ halfMax
-        if (currentSlide.length < halfMax) {
-            const need   = takeChunk(words, currentSlide.length);
-            currentSlide += need.chunk + " ";
-            words = words.slice(need.cnt);
-        }
-
-        // đẩy slide (đã chắc chắn ≥ halfMax)
-        slides.push(currentSlide.trim());
-        currentSlide = "";
-
-        // 2.1.b xử lý phần còn lại của câu
-        while (words.length) {
-            if (words.join(" ").length <= maxCharLimit) {
-                // còn lại đủ nhỏ → thành slide mới (hoặc slide cuối)
-                currentSlide = words.join(" ") + " ";
-                words = [];
-            } else {
-                const {chunk, cnt} = takeChunk(words, 0);
-                currentSlide = chunk + " ";
-                slides.push(currentSlide.trim());
-                currentSlide = "";
-                words = words.slice(cnt);
+            let prevWords = slides[i - 1].split(/\s+/);
+            while (
+                slides[i].length < minCharLimit &&
+                prevWords.length &&
+                slides[i].length + 1 + prevWords[prevWords.length - 1].length <= maxCharLimit
+                ) {
+                const word = prevWords.pop();
+                slides[i] = word + " " + slides[i];
+            }
+            slides[i - 1] = prevWords.join(" ");
+            if (!slides[i - 1]) {
+                slides.splice(i - 1, 1);
+                i++; // dịch chỉ số vì mảng rút bớt
             }
         }
     }
 
-    /* ---------- đẩy slide cuối (có thể < halfMax) ---------- */
-    if (currentSlide.trim()) slides.push(currentSlide.trim());
-
-    return slides;
+    /* ---------------- cleanup & return ---------------- */
+    return slides.map((s) => s.trim()).filter(Boolean);
 }
+
 
 // Hàm để tạo timing cho từng slide
 function generateTimings(srtData, slides, matchThreshold, maxOffset) {

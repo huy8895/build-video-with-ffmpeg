@@ -6,11 +6,11 @@
     "y": 1.307,
     "w": 5.677,
     "h": 2.313,
-    "fontSize": 25,
+    "fontSize": 35,
     "color": "#593526",
     "fontFace": "Comfortaa",
-    "align": "justify",
-    "valign": "top",
+    "align": "center",
+    "valign": "center",
     "wrap": true
   }
 }

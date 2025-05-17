@@ -346,7 +346,8 @@ function generateTimings(srtData, slides, matchThreshold, maxOffset) {
             }
             // nếu khoong thì lấy trung bình của srt cuối cùng sủa slide hiện tại và srt đầu của slide tiếp theo
             else {
-                endTime = (availableSrtData[endIndex + 1].start + availableSrtData[endIndex].end) / 2;
+                // endTime = (availableSrtData[endIndex + 1].start + availableSrtData[endIndex].end) / 2;
+                endTime = (availableSrtData[endIndex + 1].start + availableSrtData[endIndex].end) * 0.8;
                 console.log("--> end word of slide in srt: ", availableSrtData[endIndex].text);
             }
             lastSlideEndTime = endTime;

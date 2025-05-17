@@ -198,13 +198,12 @@ function generateTimings(srtData, slides, matchThreshold, maxOffset) {
         // Chuẩn hóa nội dung slide
         const normalizedSlide = normalizeText(slide);
         if (normalizedSlide.trim() === '') continue;
-        console.debug('normalizedSlide : ', normalizedSlide);
         let startIndex = null; // Vị trí bắt đầu của SRT khớp với slide
         let endIndex = null; // Vị trí kết thúc của SRT khớp với slide
 
         // Kiểm tra xem nội dung SRT có nằm trong slide không
         let slideSplit = normalizedSlide.split(' ').filter(word => word.trim() !== '');
-        console.debug('slideSplit: ', slideSplit);
+        // console.debug('slideSplit: ', slideSplit);
 
         // tạo 1 mảng để lưu các từ trong slide tương ứng trong file srt
         let arraySrtSplit = [];
@@ -218,7 +217,6 @@ function generateTimings(srtData, slides, matchThreshold, maxOffset) {
             }
 
         }
-        console.debug('arraySrtSplit: ', arraySrtSplit);
 
         const lastSlideWord = slideSplit.at(-1);
         const lastSrtWord = arraySrtSplit.at(-1);
@@ -269,13 +267,17 @@ function generateTimings(srtData, slides, matchThreshold, maxOffset) {
                 arraySrtSplit.push(nextSrtItem);
             }
         }
-        console.info('arraySrtSplit sau khi xử lý: ', arraySrtSplit);
+        // console.info('arraySrtSplit sau khi xử lý: ', arraySrtSplit);
 
         let equalWithPercentage = fuzzyMatchAverage(arraySrtSplit, slideSplit);
 
         console.log('equal array: ', equalWithPercentage);
         if (parseInt(equalWithPercentage) < 100) {
             console.warn('!== 100 equal array: ', equalWithPercentage)
+            console.debug('normalizedSlide : ', normalizedSlide);
+            console.debug('arraySrtSplit: ', arraySrtSplit);
+        } else {
+            console.debug('=== 100% ===> passed ===');
         }
         if (equalWithPercentage >= matchThreshold) {
             console.log('equalWithPercentage: ',equalWithPercentage);

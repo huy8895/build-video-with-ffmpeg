@@ -1,6 +1,6 @@
 {
   "background": "assets/MEP-background.jpg",
-  "isOnlySubtitle": true,
+  "isOnlySubtitle": false,
   "textOptions": {
     "x": 0.4,
     "y": 1.307,

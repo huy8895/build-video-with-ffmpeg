@@ -136,86 +136,112 @@ function fuzzyMatchAverage(arr1, arr2) {
 }
 
 /**
- * Split raw text into slide-sized chunks, respecting both
- *  • maxCharLimit  – no slide may exceed this length
- *  • minCharLimit  – (optional) try to avoid slides shorter than this
+ * Split raw text into slide-sized chunks, satisfying
+ *   – maxCharLimit:  slide.length ≤ maxCharLimit   (hard cap)
+ *   – minCharLimit:  slide.length ≥ minCharLimit   (best-effort)
  *
+ * 1. Cắt theo câu → push() tự đảm bảo ≤ maxCharLimit (có cắt token dài).
+ * 2. Hai lượt “mượn từ”:
+ *      • Pass thuận  (trái → phải)  kéo từ slide kế tiếp.
+ *      • Pass ngược  (phải → trái)  kéo từ slide trước.
+ *    Nhờ đó hầu như không còn slide < minCharLimit trừ phi thực sự không còn chỗ.
  */
 function processRawContent(content, maxCharLimit, minCharLimit = 0) {
     const slides = [];
 
-    /** Push a chunk (string) into slides, slicing further if it’s too long */
+    /* ---------------- helper: push(), tự cắt token dài ---------------- */
     const push = (chunk) => {
         chunk = chunk.trim();
         if (!chunk) return;
 
-        //1. If the chunk already fits → done
         if (chunk.length <= maxCharLimit) {
             slides.push(chunk);
             return;
         }
 
-        //2. Otherwise, tokenise and rebuild piece-by-piece
-        const tokens = nlp(chunk).terms().out("array"); // only words, no punctuation
+        // Token-wise split cho chuỗi quá dài
+        const tokens = nlp(chunk).terms().out("array");
         let piece = "";
-
         tokens.forEach((tok, idx) => {
             const sep = idx < tokens.length - 1 ? " " : "";
-
-            // 2a. Token itself longer than max → hard-split the token
             if (tok.length > maxCharLimit) {
                 if (piece.trim()) {
                     slides.push(piece.trim());
                     piece = "";
                 }
-                for (let start = 0; start < tok.length; start += maxCharLimit) {
-                    slides.push(tok.slice(start, start + maxCharLimit));
+                for (let s = 0; s < tok.length; s += maxCharLimit) {
+                    slides.push(tok.slice(s, s + maxCharLimit));
                 }
-                return; // move on to next token
+                return;
             }
-
-            // 2b. Normal token – check if adding it busts the limit
             if ((piece + tok + sep).length > maxCharLimit) {
                 slides.push(piece.trim());
                 piece = "";
             }
             piece += tok + sep;
         });
-
         if (piece.trim()) slides.push(piece.trim());
     };
 
-    /* ==== STEP 1: sentence-level splitting ==== */
+    /* ---------------- STEP 1: tách theo câu ---------------- */
     const sentences = nlp(content).sentences().out("array");
     let current = "";
 
-    sentences.forEach((sentence) => {
-        if ((current + sentence + " ").length > maxCharLimit) {
-            push(current);              // close current slide
-            current = sentence + " ";
+    sentences.forEach((sent) => {
+        const add = sent.trim() + " ";
+        if ((current + add).length <= maxCharLimit) {
+            current += add;
         } else {
-            current += sentence + " ";
+            push(current);
+            current = add;
         }
     });
-    push(current); // push last slide
+    push(current); // slide cuối
 
-    /* ==== STEP 2: optionally merge very short slides ==== */
+    /* ---------------- STEP 2: khử slide ngắn ---------------- */
     if (minCharLimit > 0) {
-        for (let i = slides.length - 1; i > 0; i--) {
-            if (
+        /* —— Pass thuận: kéo từ slide kế —— */
+        for (let i = 0; i < slides.length - 1; i++) {
+            if (slides[i].length >= minCharLimit) continue;
+
+            let nextWords = slides[i + 1].split(/\s+/);
+            while (
                 slides[i].length < minCharLimit &&
-                slides[i - 1].length + 1 + slides[i].length <= maxCharLimit
-            ) {
-                slides[i - 1] += " " + slides[i];
-                slides.splice(i, 1);
+                nextWords.length &&
+                slides[i].length + 1 + nextWords[0].length <= maxCharLimit
+                ) {
+                slides[i] += (slides[i].endsWith(" ") ? "" : " ") + nextWords.shift();
             }
-            // else: keep the short slide; merging would exceed max
+            slides[i + 1] = nextWords.join(" ");
+            if (!slides[i + 1]) {
+                slides.splice(i + 1, 1);
+                i--; // giữ nguyên chỉ số để xét lại slide hiện tại
+            }
+        }
+
+        /* —— Pass ngược: kéo từ slide trước —— */
+        for (let i = slides.length - 1; i > 0; i--) {
+            if (slides[i].length >= minCharLimit) continue;
+
+            let prevWords = slides[i - 1].split(/\s+/);
+            while (
+                slides[i].length < minCharLimit &&
+                prevWords.length &&
+                slides[i].length + 1 + prevWords[prevWords.length - 1].length <= maxCharLimit
+                ) {
+                const word = prevWords.pop();
+                slides[i] = word + " " + slides[i];
+            }
+            slides[i - 1] = prevWords.join(" ");
+            if (!slides[i - 1]) {
+                slides.splice(i - 1, 1);
+                i++; // dịch chỉ số vì mảng rút bớt
+            }
         }
     }
 
-    // Debug
-    // slides.forEach((s, idx) => console.log(idx, s.length, s));
-    return slides;
+    /* ---------------- cleanup & return ---------------- */
+    return slides.map((s) => s.trim()).filter(Boolean);
 }
 
 

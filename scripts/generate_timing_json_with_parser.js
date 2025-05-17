@@ -140,10 +140,8 @@ function fuzzyMatchAverage(arr1, arr2) {
  *  • maxCharLimit  – no slide may exceed this length
  *  • minCharLimit  – (optional) try to avoid slides shorter than this
  *
- * Uses compromise (window.compromise) to tokenise sentences & words.
  */
 function processRawContent(content, maxCharLimit, minCharLimit = 0) {
-    const nlp = window.compromise;
     const slides = [];
 
     /** Push a chunk (string) into slides, slicing further if it’s too long */

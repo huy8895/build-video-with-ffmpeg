@@ -130,13 +130,13 @@ function processRawContent(content, maxCharLimit, minCharLimit = 0) {
         chunk = chunk.trim();
         if (!chunk) return;
 
-        // 1. If the chunk already fits → done
+        //1. If the chunk already fits → done
         if (chunk.length <= maxCharLimit) {
             slides.push(chunk);
             return;
         }
 
-        // 2. Otherwise, tokenise and rebuild piece-by-piece
+        //2. Otherwise, tokenise and rebuild piece-by-piece
         const tokens = nlp(chunk).terms().out("array"); // only words, no punctuation
         let piece = "";
 

@@ -82,6 +82,7 @@ jobs:
           echo "MAX_OFFSET=$(jq -r '.maxOffset' config.json)" >> $GITHUB_ENV
           echo "ADD_INTRO=$(jq -r '.add_intro' config.json)" >> $GITHUB_ENV
           echo "INTRO_FOLDER_URL=$(jq -r '.intro_folder_url' config.json)" >> $GITHUB_ENV
+          echo "isOnlySubtitle=$(jq -r '.isOnlySubtitle' config.json)" >> $GITHUB_ENV
       - name: 🚀 Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -103,9 +104,21 @@ jobs:
           cp input/*.txt . || true
           cp input/background.jpg . || true  # 👈 THÊM DÒNG NÀY
 
-      - name: 🧠 Generate slides-timing.json
+      - name: 🧠 Generate slides-timing.json without isOnlySubtitle
+        if: ${{ env.isOnlySubtitle != 'true' }}
         run: |
           node scripts/generate_timing_json_with_parser.js \
+            --srt transcript.srt \
+            --content content.txt \
+            --maxChar "$MAX_CHAR" \
+            --minChar "$MIN_CHAR" \
+            --matchThreshold "$MATCH_THRESHOLD" \
+            --maxOffset "$MAX_OFFSET"
+
+      - name: 🧠 Generate slides-timing.json with isOnlySubtitle true
+        if: ${{ env.isOnlySubtitle == 'true' }}
+        run: |
+          node scripts/generate_timing_json_with_parser_v2.js \
             --srt transcript.srt \
             --content content.txt \
             --maxChar "$MAX_CHAR" \

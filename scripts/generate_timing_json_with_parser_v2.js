@@ -72,7 +72,8 @@ function normalizeText(text) {
         'twenty-seven': '27',
         'twenty-eight': '28',
         'twenty-nine': '29',
-        'thirty': '30'
+        'thirty': '30',
+        'hundred': '100',
     };
 
 

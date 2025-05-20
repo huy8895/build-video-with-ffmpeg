@@ -28,7 +28,7 @@ const {
     EMAIL_PORT,
     EMAIL_USER,
     EMAIL_PASS,
-    EMAIL_SUBJECT = 'Build video notification',
+    EMAIL_SUBJECT = '🔔 Build video notification 🎞',
 } = config;
 
 if (!EMAIL_HOST || !EMAIL_PORT || !EMAIL_USER || !EMAIL_PASS || !EMAIL_TO) {
@@ -49,7 +49,7 @@ async function sendTestEmail() {
         });
 
         let info = await transporter.sendMail({
-            from: `"Node Mailer Test" <${EMAIL_USER}>`,
+            from: `"Build Video Noti " <${EMAIL_USER}>`,
             to: EMAIL_TO,
             subject: EMAIL_SUBJECT,
             text: EMAIL_TEXT,

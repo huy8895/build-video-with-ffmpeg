@@ -3,7 +3,7 @@ const nodemailer = require('nodemailer');
 
 const CONFIG_EMAIL = process.env.CONFIG_EMAIL;
 const EMAIL_TEXT = process.env.MESSAGE;
-const EMAIL_TO = process.env.EMAIL_TO;
+const EMAIL_TO = process.env.EMAIL;
 
 if (!CONFIG_EMAIL) {
     console.warn('❌ [Skipping] CONFIG_EMAIL environment variable is missing.');

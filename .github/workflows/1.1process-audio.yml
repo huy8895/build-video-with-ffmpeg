@@ -74,7 +74,7 @@ jobs:
           node scripts/sendMail.js
         env:
           CONFIG_EMAIL: ${{ vars.CONFIG_EMAIL }}
-          EMAIL_TO: $EMAIL
+          
           
       - name: 🐍 Install Python & Google API packages
         run: pip install google-auth google-api-python-client
@@ -140,7 +140,7 @@ jobs:
           node scripts/sendMail.js
         env:
           CONFIG_EMAIL: ${{ vars.CONFIG_EMAIL }}
-          EMAIL_TO: $EMAIL
+          
           
       - name: 📛 Notify Telegram if job failed
         if: failure()
@@ -150,4 +150,4 @@ jobs:
           node scripts/sendMail.js
         env:
           CONFIG_EMAIL: ${{ vars.CONFIG_EMAIL }}
-          EMAIL_TO: $EMAIL
+          

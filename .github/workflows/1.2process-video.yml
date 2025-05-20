@@ -239,7 +239,7 @@ jobs:
           node scripts/sendMail.js
         env:
           CONFIG_EMAIL: ${{ vars.CONFIG_EMAIL }}
-          EMAIL_TO: $EMAIL
+          
       - name: 📛 Notify Telegram if job failed
         if: failure()
         run: |
@@ -248,4 +248,4 @@ jobs:
           node scripts/sendMail.js
         env:
           CONFIG_EMAIL: ${{ vars.CONFIG_EMAIL }}
-          EMAIL_TO: $EMAIL
+          

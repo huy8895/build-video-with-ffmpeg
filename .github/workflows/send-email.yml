@@ -20,6 +20,6 @@ jobs:
 #        run: npm install
 
       - name: Send test email via CONFIG_JSON
-        run: node sendMailTest.js
+        run: node scripts/sendMailTest.js
         env:
           CONFIG_JSON: ${{ vars.CONFIG_EMAIL }}

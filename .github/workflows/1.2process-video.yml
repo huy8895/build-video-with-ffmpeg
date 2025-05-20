@@ -83,6 +83,8 @@ jobs:
           echo "ADD_INTRO=$(jq -r '.add_intro' config.json)" >> $GITHUB_ENV
           echo "INTRO_FOLDER_URL=$(jq -r '.intro_folder_url' config.json)" >> $GITHUB_ENV
           echo "isOnlySubtitle=$(jq -r '.isOnlySubtitle' config.json)" >> $GITHUB_ENV
+          echo "EMAIL=$(jq -r '.email' config.json)" >> $GITHUB_ENV
+      
       - name: 🚀 Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -90,7 +92,7 @@ jobs:
 
       - name: 📦 Install Node + Python dependencies
         run: |
-          npm install pptxgenjs fs-extra minimist compromise googleapis
+          npm install pptxgenjs fs-extra minimist compromise googleapis nodemailer
           pip install --upgrade google-api-python-client google-auth google-auth-oauthlib
 
       - name: 📂 Download files from Google Drive folder
@@ -234,9 +236,16 @@ jobs:
           YT_LINK=$(cat yt_link.txt)
           export MESSAGE="🎉Channel [$CHANNEL] Video #$VIDEO_NUMBER đã được upload! 📺 Xem tại: $YT_LINK"
           node scripts/send_telegram_message.js
-
+          node scripts/sendMail.js
+        env:
+          CONFIG_EMAIL: ${{ vars.CONFIG_EMAIL }}
+          EMAIL_TO: $EMAIL
       - name: 📛 Notify Telegram if job failed
         if: failure()
         run: |
           export MESSAGE="❌ Job ${{ github.workflow }} thất bại! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | 📁 $FOLDER_URL"
           node scripts/send_telegram_message.js
+          node scripts/sendMail.js
+        env:
+          CONFIG_EMAIL: ${{ vars.CONFIG_EMAIL }}
+          EMAIL_TO: $EMAIL

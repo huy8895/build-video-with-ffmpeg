@@ -1,16 +1,23 @@
 // sendMailTest.js
 const nodemailer = require('nodemailer');
 
-const CONFIG_JSON = process.env.CONFIG_JSON;
+const CONFIG_EMAIL = process.env.CONFIG_EMAIL;
+const EMAIL_TEXT = process.env.MESSAGE;
+const EMAIL_TO = process.env.EMAIL_TO;
 
-if (!CONFIG_JSON) {
-    console.error('❌ CONFIG_JSON environment variable is missing.');
-    process.exit(1);
+if (!CONFIG_EMAIL) {
+    console.warn('❌ [Skipping] CONFIG_EMAIL environment variable is missing.');
+    return; // hoặc process.exit(0) nếu bên ngoài function
+}
+
+if (!EMAIL_TO) {
+    console.warn('ℹ️ [Skipping] email: EMAIL_TO is not set.');
+    return;
 }
 
 let config;
 try {
-    config = JSON.parse(CONFIG_JSON);
+    config = JSON.parse(CONFIG_EMAIL);
 } catch (error) {
     console.error('❌ Failed to parse CONFIG_JSON:', error.message);
     process.exit(1);
@@ -21,9 +28,7 @@ const {
     EMAIL_PORT,
     EMAIL_USER,
     EMAIL_PASS,
-    EMAIL_TO,
-    EMAIL_SUBJECT = 'Test Email from Node.js',
-    EMAIL_TEXT = 'Hello! This is a test email from Node.js using nodemailer.'
+    EMAIL_SUBJECT = 'Build video notification',
 } = config;
 
 if (!EMAIL_HOST || !EMAIL_PORT || !EMAIL_USER || !EMAIL_PASS || !EMAIL_TO) {

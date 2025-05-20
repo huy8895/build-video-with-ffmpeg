@@ -52,11 +52,10 @@ jobs:
     steps:
       - name: 📥 Checkout source code
         uses: actions/checkout@v4
+        
+      - name: Install dependencies send mail
+        run: npm install nodemailer
 
-      - name: "📩 Notify: Start processing AUDIO"
-        run: |
-          export MESSAGE="Start ${{ github.workflow }} [$CHANNEL] Video #$VIDEO_NUMBER "
-          node scripts/send_telegram_message.js
       - name: 🧪 Parse CONFIG_JSON into environment variables
         id: parse
         run: |
@@ -66,7 +65,17 @@ jobs:
           echo "MAX_WORDS_PER_LINE=$(jq -r '.max_words_per_line' config.json)" >> $GITHUB_ENV
           echo "LANGUAGE=$(jq -r '.language' config.json)" >> $GITHUB_ENV
           echo "VOLUME=$(jq -r '.volume' config.json)" >> $GITHUB_ENV
+          echo "EMAIL=$(jq -r '.email' config.json)" >> $GITHUB_ENV
 
+      - name: "📩 Notify: Start processing AUDIO"
+        run: |
+          export MESSAGE="Start ${{ github.workflow }} [$CHANNEL] Video #$VIDEO_NUMBER"
+          node scripts/send_telegram_message.js
+          node scripts/sendMail.js
+        env:
+          CONFIG_EMAIL: ${{ vars.CONFIG_EMAIL }}
+          EMAIL_TO: $EMAIL
+          
       - name: 🐍 Install Python & Google API packages
         run: pip install google-auth google-api-python-client
 
@@ -128,8 +137,17 @@ jobs:
         run: |
           export MESSAGE="✅Done ${{ github.workflow }} ! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | WhisperModel: $WHISPER_MODEL | Speed: $SPEED | Lang: $LANGUAGE | ✅ Done! 📁 $FOLDER_URL"
           node scripts/send_telegram_message.js
+          node scripts/sendMail.js
+        env:
+          CONFIG_EMAIL: ${{ vars.CONFIG_EMAIL }}
+          EMAIL_TO: $EMAIL
+          
       - name: 📛 Notify Telegram if job failed
         if: failure()
         run: |
           export MESSAGE="❌ ${{ github.workflow }} thất bại! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | 📁 $FOLDER_URL"
           node scripts/send_telegram_message.js
+          node scripts/sendMail.js
+        env:
+          CONFIG_EMAIL: ${{ vars.CONFIG_EMAIL }}
+          EMAIL_TO: $EMAIL

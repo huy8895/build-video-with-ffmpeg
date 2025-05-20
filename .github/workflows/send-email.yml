@@ -16,8 +16,8 @@ jobs:
 #        with:
 #          node-version: '20'
 #
-#      - name: Install dependencies
-#        run: npm install
+      - name: Install dependencies
+        run: npm install nodemailer
 
       - name: Send test email via CONFIG_JSON
         run: node scripts/sendMailTest.js

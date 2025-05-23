@@ -255,6 +255,14 @@ function generateTimings(srtData, slides, matchThreshold, maxOffset) {
 
         }
 
+        const firtstSlideWord = slideSplit[0];
+        const firstSrtWord = arraySrtSplit[0];
+        // Nếu từ đầu của slide khác từ đầu của srt
+        if(firstSrtWord !== firtstSlideWord) {
+            console.log('Trường hợp: từ đầu tiên trong slide không giống từ đầu tiên trong srt', firstSrtWord, firtstSlideWord);
+            throw Error('từ đầu của slide khác từ đầu của srt');
+        }
+
         const lastSlideWord = slideSplit.at(-1);
         const lastSrtWord = arraySrtSplit.at(-1);
 
@@ -266,7 +274,7 @@ function generateTimings(srtData, slides, matchThreshold, maxOffset) {
                 lastSrtWord);
 
             //TH1: Lùi từ cuối của srt split array đến giá trị trùng với từ cuối cùng trong slide
-            //lặp lùi từ cuối cùng của srt đến giá trị maxOffset.
+            console.log("TH1: Lùi từ cuối của srt split array đến giá trị trùng với từ cuối cùng trong slide")
             let indexToPop = 0;
             for (let i = 0; i < maxOffset; i++) {
                 let wordOfSrtAt = arraySrtSplit.at(-1 - i);
@@ -276,32 +284,32 @@ function generateTimings(srtData, slides, matchThreshold, maxOffset) {
                     break;
                 }
             }
+            let matchedInPop = indexToPop > 0;
 
-            //Loại bỏ phần tử trong arraySrtSplit
             while(indexToPop > 1) {
                 console.warn('Loại bỏ phần tử trong arraySrtSplit', arraySrtSplit.at(-1));
                 arraySrtSplit.pop();
                 indexToPop--;
             }
 
-            //TH2: Tiến từ giá trị đầu tiên của availableSrtData đến giá trị trùng với từ cuối cùng của slide
-            let indexToPush = 0;
-
-            //Lặp tiến sang phải từ cuối dùng của srt đến maxOffset
-            for (let i = 0; i < maxOffset; i++) {
-                let nextSrtWord = availableSrtData.at(slideSplit.length + i);
-                if(nextSrtWord && lastSlideWord === normalizeText(nextSrtWord.text)) {
-                    console.warn('Khớp với từ trong array SRT tiếp theo → loại bỏ từ cuối cùng của SRT', lastSlideWord, normalizeText(nextSrtWord.text));
-                    indexToPush = i + 1; // +1 vì i bắt đầu từ 0
-                    break;
+            //TH2: Tiến từ availableSrtData đến giá trị trùng với từ cuối cùng trong slide
+            if (!matchedInPop) {
+                console.log("TH2: Tiến từ availableSrtData đến giá trị trùng với từ cuối cùng trong slide");
+                let indexToPush = 0;
+                for (let i = 0; i < maxOffset; i++) {
+                    let nextSrtWord = availableSrtData.at(slideSplit.length + i);
+                    if (nextSrtWord && lastSlideWord === normalizeText(nextSrtWord.text)) {
+                        console.warn('Khớp với từ trong array SRT tiếp theo → thêm vào arraySrtSplit', lastSlideWord, normalizeText(nextSrtWord.text));
+                        indexToPush = i + 1;
+                        break;
+                    }
                 }
-            }
 
-            //Thêm phần tử vào arraySrtSplit
-            for (let i = 0; i < indexToPush; i++) {
-                let nextSrtItem = normalizeText(availableSrtData[slideSplit.length + i].text);
-                console.warn('Thêm phần tử vào arraySrtSplit', nextSrtItem);
-                arraySrtSplit.push(nextSrtItem);
+                for (let i = 0; i < indexToPush; i++) {
+                    let nextSrtItem = normalizeText(availableSrtData[slideSplit.length + i].text);
+                    console.warn('Thêm phần tử vào arraySrtSplit', nextSrtItem);
+                    arraySrtSplit.push(nextSrtItem);
+                }
             }
         }
         // console.info('arraySrtSplit sau khi xử lý: ', arraySrtSplit);

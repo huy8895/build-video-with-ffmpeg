@@ -318,23 +318,23 @@ function generateTimings(srtData, slides, matchThreshold, maxOffset) {
 
         console.log('equal array: ', equalWithPercentage);
         if (parseInt(equalWithPercentage) < 100) {
-            console.warn('!== 100 equal array: ', equalWithPercentage)
-            console.debug('normalizedSlide : ', normalizedSlide);
-            console.debug('arraySrtSplit: ', arraySrtSplit);
+            console.warn('[warning] !== 100 equal array: ', equalWithPercentage)
+            console.debug('[debug] normalizedSlide : ', normalizedSlide);
+            console.debug('[debug] arraySrtSplit: ', arraySrtSplit);
         } else {
-            console.debug('=== 100% ===> passed ===');
+            console.debug('[debug] === 100% ===> passed ===');
         }
         if (equalWithPercentage >= matchThreshold) {
             console.log('equalWithPercentage: ',equalWithPercentage);
             startIndex = 0;
             endIndex = srtIndex + arraySrtSplit.length - 1;
         } else {
-            console.error('not equalWithPercentage: ',equalWithPercentage);
+            console.error('[error] not equalWithPercentage: ',equalWithPercentage);
             throw Error('not equalWithPercentage');
         }
 
         if (startIndex == null || endIndex == null) {
-            console.error('lỗi không tìm thấy SRT khớp cho slide: ', slide);
+            console.error('[error] lỗi không tìm thấy SRT khớp cho slide: ', slide);
             throw  Error('startIndex == null || endIndex == null');
         }
 
@@ -422,6 +422,6 @@ async function main() {
 }
 
 main().catch(err => {
-  console.error("🔥 Error:", err);
+  console.error("[error] 🔥 Error:", err);
   process.exit(1);
 });

@@ -259,6 +259,7 @@ function generateTimings(srtData, slides, matchThreshold, maxOffset) {
         const firstSrtWord = arraySrtSplit[0];
         // Nếu từ đầu của slide khác từ đầu của srt
         if(firstSrtWord !== firtstSlideWord) {
+            console.log('arraySrtSplit: ', arraySrtSplit);
             console.log('Trường hợp: từ đầu tiên trong slide không giống từ đầu tiên trong srt', firstSrtWord, firtstSlideWord);
             throw Error('từ đầu của slide khác từ đầu của srt');
         }

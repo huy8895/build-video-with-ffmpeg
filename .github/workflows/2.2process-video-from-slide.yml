@@ -97,12 +97,13 @@ jobs:
       # ───────────────────────────────────────────────────────────
       - name: 📄 Convert PPTX → PDF
         run: |
-          soffice --headless --convert-to pdf slides.pptx --outdir .
+          mkdir -p slides_pdf
+          soffice --headless --convert-to pdf --outdir slides_pdf slides.pptx
 
       - name: 🖼 PDF → PNG
         run: |
-          mkdir slides_png
-          pdftoppm -png -r "$DPI" slides.pdf slides_png/slide
+          mkdir -p slides_png
+          pdftoppm -png -r "$DPI" slides_pdf/slides.pdf slides_png/slide
 
       - name: 📝 Build input.txt
         run: IMAGES_DIR=slides_png node scripts/build_input_list.js

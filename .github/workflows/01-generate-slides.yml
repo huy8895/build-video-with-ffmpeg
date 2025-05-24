@@ -33,10 +33,13 @@ jobs:
     steps:
       - name: 📅 Checkout source code
         uses: actions/checkout@v4
+      - name: 🏁 Tạo link đến workflow run
+        run: |
+          echo "RUN_URL=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_ENV
 
       - name: "📩 Notify: Start slide generation"
         run: |
-          export MESSAGE="▶️ [$CHANNEL] Video #$VIDEO_NUMBER: Bắt đầu tạo SLIDE 📑"
+          export MESSAGE="▶️ [$CHANNEL] Video #$VIDEO_NUMBER: Bắt đầu tạo SLIDE 📑 | 🔗 View run: $RUN_URL"
           node scripts/send_telegram_message.js
 
       # ───────────────────────────────────────────────────────────
@@ -110,10 +113,10 @@ jobs:
 
       - name: "📩 Notify: Slides done"
         run: |
-          export MESSAGE="✅ [$CHANNEL] Video #$VIDEO_NUMBER: Đã tạo & upload slides.pptx thành công!"
+          export MESSAGE="✅ [$CHANNEL] Video #$VIDEO_NUMBER: Đã tạo & upload slides.pptx thành công! | 🔗 View run: $RUN_URL"
           node scripts/send_telegram_message.js
       - name: 📛 Notify Telegram if job failed
         if: failure()
         run: |
-          export MESSAGE="❌ Job 📑 Generate Slides from Google Drive thất bại! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | 📁 $FOLDER_URL"
+          export MESSAGE="❌ Job 📑 Generate Slides from Google Drive thất bại! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | 📁 $FOLDER_URL | 🔗 View run: $RUN_URL"
           node scripts/send_telegram_message.js

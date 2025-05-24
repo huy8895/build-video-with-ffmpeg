@@ -54,10 +54,12 @@ jobs:
     steps:
       - name: 📅 Checkout source code
         uses: actions/checkout@v4
-
+      - name: 🏁 Tạo link đến workflow run
+        run: |
+          echo "RUN_URL=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_ENV
       - name: "📩 Notify: Start processing video"
         run: |
-          export MESSAGE="▶️ [$CHANNEL] Video #$VIDEO_NUMBER: Start ${{ github.workflow }}"
+          export MESSAGE="▶️ [$CHANNEL] Video #$VIDEO_NUMBER: Start ${{ github.workflow }} 🔗 View run: $RUN_URL"
           node scripts/send_telegram_message.js
 
       - name: ✅ Validate CONFIG_JSON content
@@ -234,7 +236,7 @@ jobs:
         if: ${{ env.UPLOAD_TO_YOUTUBE == 'true' }}
         run: |
           YT_LINK=$(cat yt_link.txt)
-          export MESSAGE="🎉Channel [$CHANNEL] Video #$VIDEO_NUMBER đã được upload! 📺 Xem tại: $YT_LINK"
+          export MESSAGE="🎉Channel [$CHANNEL] Video #$VIDEO_NUMBER đã được upload! 📺 Xem tại: $YT_LINK | 🔗 View run: $RUN_URL"
           node scripts/send_telegram_message.js
           node scripts/sendMail.js
         env:
@@ -243,7 +245,7 @@ jobs:
       - name: 📛 Notify Telegram if job failed
         if: failure()
         run: |
-          export MESSAGE="❌ Job ${{ github.workflow }} thất bại! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | 📁 $FOLDER_URL"
+          export MESSAGE="❌ Job ${{ github.workflow }} thất bại! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | 📁 $FOLDER_URL | 🔗 View run: $RUN_URL"
           node scripts/send_telegram_message.js
           node scripts/sendMail.js
         env:

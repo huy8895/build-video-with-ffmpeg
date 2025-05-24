@@ -66,10 +66,12 @@ jobs:
           echo "LANGUAGE=$(jq -r '.language' config.json)" >> $GITHUB_ENV
           echo "VOLUME=$(jq -r '.volume' config.json)" >> $GITHUB_ENV
           echo "EMAIL=$(jq -r '.email' config.json)" >> $GITHUB_ENV
-
+      - name: 🏁 Tạo link đến workflow run
+        run: |
+          echo "RUN_URL=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_ENV
       - name: "📩 Notify: Start processing AUDIO"
         run: |
-          export MESSAGE="Start ${{ github.workflow }} [$CHANNEL] Video #$VIDEO_NUMBER"
+          export MESSAGE="✅Done  📺 Channel: [$CHANNEL] | Video: #$VIDEO_NUMBER 🧠 WhisperModel: $WHISPER_MODEL | 🎚️ Speed: $SPEED | 🗣️ Lang: $LANGUAGE 📁 Folder: $FOLDER_URL 🔗 View run: $RUN_URL"
           node scripts/send_telegram_message.js
           node scripts/sendMail.js
         env:
@@ -135,7 +137,7 @@ jobs:
 
       - name: 🚀 Gửi tin nhắn Telegram
         run: |
-          export MESSAGE="✅Done ${{ github.workflow }} ! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | WhisperModel: $WHISPER_MODEL | Speed: $SPEED | Lang: $LANGUAGE | ✅ Done! 📁 $FOLDER_URL"
+          export MESSAGE="✅Done ${{ github.workflow }} ! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | WhisperModel: $WHISPER_MODEL | Speed: $SPEED | Lang: $LANGUAGE | ✅ Done! 📁 $FOLDER_URL 🔗 View run: $RUN_URL"
           node scripts/send_telegram_message.js
           node scripts/sendMail.js
         env:
@@ -145,7 +147,7 @@ jobs:
       - name: 📛 Notify Telegram if job failed
         if: failure()
         run: |
-          export MESSAGE="❌ ${{ github.workflow }} thất bại! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | 📁 $FOLDER_URL"
+          export MESSAGE="❌ ${{ github.workflow }} thất bại! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | 📁 $FOLDER_URL 🔗 View run: $RUN_URL"
           node scripts/send_telegram_message.js
           node scripts/sendMail.js
         env:

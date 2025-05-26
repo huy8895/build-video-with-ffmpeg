@@ -64,7 +64,8 @@ on:
 jobs:
   generate-tts:
     runs-on: ubuntu-latest
-
+    environment:
+      name: ${{ inputs.env }}
     # Biến môi trường dùng cho các script Google API hiện có
     env:
       FOLDER_URL:      ${{ inputs.folder_url }}
@@ -77,10 +78,6 @@ jobs:
     steps:
       - name: 📥 Checkout source code
         uses: actions/checkout@v4
-      - run: |
-          echo "Refresh token length: $GG_REFRESH_TOKEN"
-        env:
-          GG_REFRESH_TOKEN: ${{ secrets.GG_REFRESH_TOKEN }}
 
       - name: 📦 Install Python dependencies
         run: pip install google-auth google-api-python-client google-genai

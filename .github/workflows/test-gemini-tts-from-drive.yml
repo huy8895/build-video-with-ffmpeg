@@ -97,7 +97,7 @@ jobs:
       - name: 🗣 Generate TTS
         id: tts
         run: |
-          python gemini_tts_generate.py \
+          python scripts/gemini_tts_generate.py \
             --voice "${{ inputs.voice_name }}" \
             --speed "${{ inputs.speed }}" \
             --input content.txt

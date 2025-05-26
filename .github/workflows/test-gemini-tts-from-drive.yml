@@ -97,11 +97,14 @@ jobs:
       - name: 🗣 Generate TTS
         id: tts
         run: |
-          python scripts/gemini_tts_generate.py \
+          python scripts/gemini_tts_generate_wav.py \
             --voice "${{ inputs.voice_name }}" \
-            --temp "${{ inputs.speed }}" \
-            --input content.txt
-          echo "OUTPUT_FILE=$(ls -1 output_*.wav | head -n1)" >> $GITHUB_ENV
+            --temp  "${{ inputs.speed }}" \
+            --input content.txt \
+            --output output_0.wav
+          echo "OUTPUT_FILE=output_0.wav" >> $GITHUB_ENV
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
       # ────────────────────────────────────────────────
       # 3. (Tùy chọn) Upload lên Drive

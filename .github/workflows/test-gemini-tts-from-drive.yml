@@ -4,6 +4,15 @@ name: 🗣 Test Gemini TTS from Drive
 on:
   workflow_dispatch:
     inputs:
+      env:
+        description: 'Chọn môi trường (ose, mep, dde)'
+        required: true
+        default: 'ose'
+        type: choice
+        options:
+          - ose
+          - mep
+          - dde
       folder_url:
         description: "Google Drive folder URL (chứa content.txt)"
         required: true

@@ -1,152 +1,121 @@
-#!/usr/bin/env python3
-"""
-gemini_tts_generate_mp3.py
-Create MP3 from content.txt using Google Gemini TTS
-"""
-
-import os
-import mimetypes
-import struct
-import subprocess
-from io import BytesIO
+# pip install google-genai
+import os, mimetypes, struct
 from google import genai
 from google.genai import types
 
 
-# ─────────────────── Utility helpers ────────────────────
-def save_file(path: str, data: bytes):
-    with open(path, "wb") as f:
+def save_binary_file(file_name: str, data: bytes):
+    with open(file_name, "wb") as f:
         f.write(data)
-    print(f"✅ Saved: {path}")
+    print(f"✅ File saved: {file_name}")
 
 
-def parse_audio_mime_type(mime_type: str) -> dict:
-    """Extract bits_per_sample & sample_rate from e.g. audio/L16;rate=24000"""
-    bits, rate = 16, 24000
-    for part in mime_type.split(";"):
-        part = part.strip()
-        if part.lower().startswith("rate="):
-            try:
-                rate = int(part.split("=")[1])
-            except ValueError:
-                pass
-        elif part.startswith("audio/L"):
-            try:
-                bits = int(part.split("L")[1])
-            except ValueError:
-                pass
-    return {"bits": bits, "rate": rate}
-
-
-def pcm_to_wav(raw: bytes, mime_type: str) -> bytes:
-    """Wrap raw PCM bytes with a WAV header (mono)."""
-    p = parse_audio_mime_type(mime_type)
-    bits, rate = p["bits"], p["rate"]
-    num_channels, data_size = 1, len(raw)
-    block_align = num_channels * (bits // 8)
-    byte_rate = rate * block_align
-    chunk_size = 36 + data_size
+# ──────── Google sample helpers ────────
+def convert_to_wav(audio_data: bytes, mime_type: str) -> bytes:
+    parameters       = parse_audio_mime_type(mime_type)
+    bits_per_sample  = parameters["bits_per_sample"]
+    sample_rate      = parameters["rate"]
+    num_channels     = 1
+    data_size        = len(audio_data)
+    byte_rate        = sample_rate * num_channels * bits_per_sample // 8
+    block_align      = num_channels * bits_per_sample // 8
+    chunk_size       = 36 + data_size
 
     header = struct.pack(
         "<4sI4s4sIHHIIHH4sI",
         b"RIFF", chunk_size, b"WAVE",
-        b"fmt ", 16, 1, num_channels, rate,
-        byte_rate, block_align, bits,
+        b"fmt ", 16, 1, num_channels, sample_rate,
+        byte_rate, block_align, bits_per_sample,
         b"data", data_size
     )
-    return header + raw
+    return header + audio_data
 
 
-def wav_to_mp3(wav_bytes: bytes, sample_rate: int, bits: int, out_path: str):
-    """Convert WAV/PCM ↦ MP3 via ffmpeg (stdin→file)."""
-    fmt = f"s{bits}le" if bits in (16, 24, 32) else "s16le"
-    cmd = [
-        "ffmpeg", "-y",
-        "-f", fmt,
-        "-ar", str(sample_rate),
-        "-ac", "1",
-        "-i", "pipe:0",
-        "-c:a", "libmp3lame",
-        "-q:a", "4",
-        out_path,
-    ]
-    proc = subprocess.run(cmd, input=wav_bytes, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    if proc.returncode != 0:
-        raise RuntimeError(f"ffmpeg error: {proc.stderr.decode()[:400]}")
-    print(f"🎧 MP3 created: {out_path}")
+def parse_audio_mime_type(mime_type: str) -> dict[str, int | None]:
+    bits_per_sample, rate = 16, 24000
+    for p in mime_type.split(";"):
+        p = p.strip()
+        if p.lower().startswith("rate="):
+            try:
+                rate = int(p.split("=")[1])
+            except ValueError:
+                pass
+        elif p.startswith("audio/L"):
+            try:
+                bits_per_sample = int(p.split("L")[1])
+            except ValueError:
+                pass
+    return {"bits_per_sample": bits_per_sample, "rate": rate}
 
 
-# ───────────────────── Gemini TTS ────────────────────────
-def generate_mp3(text: str, voice: str, temperature: float, out_prefix: str = "output") -> str:
+# ───────────────────────────────────────
+def generate(text: str, voice_name: str = "Zephyr", temperature: float = 1.0):
     client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
-    model = "gemini-2.5-flash-preview-tts"
+    model  = "gemini-2.5-flash-preview-tts"
 
-    contents = [types.Content(role="user", parts=[types.Part.from_text(text=text)])]
+    contents = [types.Content(role="user",
+                              parts=[types.Part.from_text(text=text)])]
+
     cfg = types.GenerateContentConfig(
         temperature=temperature,
         response_modalities=["audio"],
         speech_config=types.SpeechConfig(
             voice_config=types.VoiceConfig(
-                prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice)
+                prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                    voice_name=voice_name
+                )
             )
         ),
     )
 
-    # Collect ALL chunks
-    raw_buffers = []
-    mime_type = None
-    for chunk in client.models.generate_content_stream(model=model, contents=contents, config=cfg):
+    print("⏳ Generating audio…")
+    raw_audio   = bytearray()
+    mime_type   = None
+    for chunk in client.models.generate_content_stream(
+        model=model, contents=contents, config=cfg
+    ):
         if (chunk.candidates and chunk.candidates[0].content and
                 chunk.candidates[0].content.parts):
             part = chunk.candidates[0].content.parts[0]
             if part.inline_data and part.inline_data.data:
-                raw_buffers.append(part.inline_data.data)
+                raw_audio.extend(part.inline_data.data)
                 mime_type = part.inline_data.mime_type
+            elif part.text:
+                # Optional: print partial transcripts if you also request text
+                print(part.text, end="", flush=True)
 
-    if not raw_buffers:
-        print("❌ No audio returned.")
-        return ""
+    if not raw_audio:
+        raise RuntimeError("❌ No audio was generated.")
 
-    audio_bytes = b"".join(raw_buffers)
+    # Nếu Gemini đã trả về đuôi chuẩn (.wav, .mp3, .ogg)
+    ext = mimetypes.guess_extension(mime_type or "")
+    if ext and ext != ".raw" and not ext.startswith(".bin"):
+        filename = f"output{ext}"
+        save_binary_file(filename, raw_audio)
+        return filename
 
-    # Case 1: API already gave us MP3
-    if mime_type and mime_type.startswith("audio/mpeg"):
-        out_path = f"{out_prefix}.mp3"
-        save_file(out_path, audio_bytes)
-        return out_path
-
-    # Case 2: Raw PCM → MP3 via ffmpeg
-    params = parse_audio_mime_type(mime_type or "audio/L16;rate=24000")
-    wav_bytes = pcm_to_wav(audio_bytes, mime_type or "audio/L16;rate=24000")
-    temp_pcm = BytesIO(wav_bytes).read()  # ensure bytes-like
-    out_path = f"{out_prefix}.mp3"
-    wav_to_mp3(temp_pcm, params["rate"], params["bits"], out_path)
-    return out_path
+    # Ngược lại là raw PCM ⇒ gói WAV
+    filename = "output.wav"
+    wav_bytes = convert_to_wav(bytes(raw_audio), mime_type or "audio/L16;rate=24000")
+    save_binary_file(filename, wav_bytes)
+    return filename
 
 
-# ──────────────────────── CLI ───────────────────────────
+# ────────────── CLI test ───────────────
 if __name__ == "__main__":
-    import argparse, sys, textwrap
+    import argparse, pathlib, sys
 
-    parser = argparse.ArgumentParser(
-        description="Generate MP3 with Gemini TTS",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=textwrap.dedent("""\
-            Example:
-              python gemini_tts_generate_mp3.py --voice Aoede --speed 1.0 --input content.txt
-        """),
-    )
-    parser.add_argument("--voice", required=True, help="Voice name, e.g. Aoede")
-    parser.add_argument("--speed", type=float, default=1.0, help="Temperature/speed")
-    parser.add_argument("--input", default="content.txt", help="Input text file")
-    args = parser.parse_args()
+    p = argparse.ArgumentParser(description="Gemini TTS sample (fixed WAV)")
+    p.add_argument("--voice", default="Zephyr", help="Voice name, e.g. Zephyr, Aoede…")
+    p.add_argument("--temp",  type=float, default=1.0, help="Temperature (speed / style)")
+    p.add_argument("--input", default="content.txt", help="Input text file")
+    args = p.parse_args()
 
-    if not os.path.isfile(args.input):
+    if not pathlib.Path(args.input).is_file():
         sys.exit(f"❌ Input file not found: {args.input}")
 
     with open(args.input, "r", encoding="utf-8") as f:
         text_in = f.read().strip()
 
-    out_file = generate_mp3(text_in, args.voice, args.speed)
-    if out_file:
-        print(f"::set-output name=output_file::{out_file}")  # for GitHub Actions
+    out = generate(text_in, args.voice, args.temp)
+    print(f"\n🎧 Done! Audio file → {out}")

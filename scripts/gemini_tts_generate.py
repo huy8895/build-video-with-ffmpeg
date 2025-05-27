@@ -101,6 +101,29 @@ def generate(text: str, voice_name: str = "Zephyr", temperature: float = 1.0):
     save_binary_file(filename, wav_bytes)
     return filename
 
+# ────────────── helper sinh 1 file ──────────────
+def generate_one(text: str, idx: int, voice: str, temp: float) -> str:
+    chunk_tag = f"#{idx+1:02d}"
+    print(f"🎙️  Bắt đầu TTS {chunk_tag} – {len(text)} ký tự, voice {voice}")
+    fname = f"output_{idx}.wav"
+    generate(text, voice_name=voice, temperature=temp)   # Tái dùng hàm cũ (đã tự save)
+    print(f"✅ Hoàn thành TTS {chunk_tag} → {fname}\n")
+    return fname
+
+
+# ────────────── chia & sinh nhiều file ──────────────
+def generate_multi(text: str, voice: str, temp: float, max_char: int = 1500):
+    print(f"📐 Đang chia văn bản (≤{max_char} ký tự mỗi đoạn)…")
+    parts = split_text(text, max_char=max_char)
+    print(f"🔹 Tìm được {len(parts)} đoạn cần xử lý.\n")
+
+    files = []
+    for i, ptext in enumerate(parts):
+        files.append(generate_one(ptext, i, voice, temp))
+
+    print(f"🏁 Hoàn tất – tạo {len(files)} file audio.")
+    return files
+
 
 # ────────────── CLI test ───────────────
 # --- CLI phần cuối ---
@@ -126,26 +149,4 @@ if __name__ == "__main__":
 
 
 
-# ────────────── helper sinh 1 file ──────────────
-def generate_one(text: str, idx: int, voice: str, temp: float) -> str:
-    chunk_tag = f"#{idx+1:02d}"
-    print(f"🎙️  Bắt đầu TTS {chunk_tag} – {len(text)} ký tự, voice {voice}")
-    fname = f"output_{idx}.wav"
-    generate(text, voice_name=voice, temperature=temp)   # Tái dùng hàm cũ (đã tự save)
-    print(f"✅ Hoàn thành TTS {chunk_tag} → {fname}\n")
-    return fname
-
-
-# ────────────── chia & sinh nhiều file ──────────────
-def generate_multi(text: str, voice: str, temp: float, max_char: int = 1500):
-    print(f"📐 Đang chia văn bản (≤{max_char} ký tự mỗi đoạn)…")
-    parts = split_text(text, max_char=max_char)
-    print(f"🔹 Tìm được {len(parts)} đoạn cần xử lý.\n")
-
-    files = []
-    for i, ptext in enumerate(parts):
-        files.append(generate_one(ptext, i, voice, temp))
-
-    print(f"🏁 Hoàn tất – tạo {len(files)} file audio.")
-    return files
 

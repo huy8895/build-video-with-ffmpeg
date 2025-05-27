@@ -103,31 +103,27 @@ jobs:
           pip install --upgrade pip
           pip install setuptools-rust openai-whisper
 
-      - name: 🔗 Chuẩn hóa định dạng và nối file audio (.mp3 hoặc .wav)
+      - name: 🔗 Chuẩn hóa định dạng và nối file audio (.mp3 | .wav)
         run: |
           mkdir -p merged fixed_mp3
-          rm -f merged/sorted.txt merged/list.txt
+          rm -f merged/list.txt
           
-          # Ghi đường dẫn tuyệt đối
+          echo "📋 Quét file audio…"
+          # Xuất đường dẫn tuyệt đối, NUL-delimited
           find "$(pwd)/audio" -maxdepth 1 -type f \( -iname "*.mp3" -o -iname "*.wav" \) \
-            | sort -V > merged/sorted.txt
+               -print0 | sort -zV |
+          while IFS= read -r -d '' f; do
+            n=$((n+1))
+            out="fixed_mp3/${n}.mp3"
+            echo "🎵 [$n] $(basename "$f") → $(basename "$out")"
+            ffmpeg -nostats -loglevel error -y \
+                   -i "$f" -vn -ar 44100 -ac 2 -b:a 256k "$out"
+            printf "file '%s/%s'\n" "$PWD" "$out" >> merged/list.txt
+          done
           
-          echo "📋 Các file được phát hiện:"
-          cat merged/sorted.txt
-          
-          i=1
-          while IFS= read -r f || [[ -n $f ]]; do
-            f="${f//$'\r'/}"   # ✂️ loại CR
-            echo "🎵 Converting: $f"
-            ffmpeg -y -i "$f" -vn -ar 44100 -ac 2 -b:a 256k "fixed_mp3/$i.mp3"
-            echo "file '$PWD/fixed_mp3/$i.mp3'" >> merged/list.txt
-            i=$((i+1))
-          done < merged/sorted.txt
-          
-          echo "🧩 Merging files..."
-          ffmpeg -f concat -safe 0 -i merged/list.txt -c copy merged/merged.mp3
-      
-      
+          echo "🧩 Merging files…"
+          ffmpeg -nostats -loglevel error -f concat -safe 0 -i merged/list.txt \
+                 -c copy merged/merged.mp3
       
       - name: 🐢 Điều chỉnh tốc độ & âm lượng audio
         run: |

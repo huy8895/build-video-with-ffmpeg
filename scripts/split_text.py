@@ -12,11 +12,17 @@ import nltk
 from nltk.tokenize import sent_tokenize
 
 # Bảo đảm tokenizer 'punkt' có sẵn (lần đầu CI tải rất nhanh)
-try:
-    nltk.data.find("tokenizers/punkt")
-except LookupError:
-    print("📥  nltk: tải tokenizer 'punkt'…")
-    nltk.download("punkt", quiet=True)
+# Bảo đảm tokenizer 'punkt' & 'punkt_tab' có sẵn
+for res in ("punkt", "punkt_tab"):
+    try:
+        if res == "punkt":
+            nltk.data.find("tokenizers/punkt")
+        else:
+            nltk.data.find("tokenizers/punkt_tab/english")
+    except LookupError:
+        print(f"📥  nltk: tải resource '{res}'…")
+        nltk.download(res, quiet=True)
+
 
 
 def _normalize(text: str) -> str:

@@ -106,23 +106,21 @@ jobs:
       - name: 🔗 Chuẩn hóa định dạng và nối file audio (.mp3 hoặc .wav)
         run: |
           mkdir -p merged fixed_mp3
-          
-          # Tạo danh sách file với đường dẫn tuyệt đối để tránh lỗi đường dẫn sai
-          find "$(pwd)/audio" -maxdepth 1 -type f \( -iname "*.mp3" -o -iname "*.wav" \) | sort -V > merged/sorted.txt
-          cat merged/sorted.txt
-          
-          # Convert từng file về mp3 chuẩn
+          # Tìm toàn bộ file audio có định dạng .mp3 hoặc .wav và sắp xếp
+          find audio -maxdepth 1 -type f \( -iname "*.mp3" -o -iname "*.wav" \) | sort -V > merged/sorted.txt
+      
+          # Duyệt từng file và convert về .mp3 thật sự
           i=1
-          while IFS= read -r f; do
+          while read f; do
             ffmpeg -y -i "$f" -vn -ar 44100 -ac 2 -b:a 256k "fixed_mp3/$i.mp3"
             echo "file '$PWD/fixed_mp3/$i.mp3'" >> merged/list.txt
             i=$((i+1))
           done < merged/sorted.txt
-          
-          # Nối các file mp3 đã chuẩn hóa thành 1 file merged
+      
+          # Nối tất cả các file mp3 đã chuẩn hóa
           ffmpeg -f concat -safe 0 -i merged/list.txt -c copy merged/merged.mp3
-      
-      
+
+
       - name: 🐢 Điều chỉnh tốc độ & âm lượng audio
         run: |
           mkdir -p adjusted

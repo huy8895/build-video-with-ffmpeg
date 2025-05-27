@@ -2,6 +2,7 @@
 import os, mimetypes, struct
 from google import genai
 from google.genai import types
+from split_text import split_text
 
 
 def save_binary_file(file_name: str, data: bytes):
@@ -102,6 +103,7 @@ def generate(text: str, voice_name: str = "Zephyr", temperature: float = 1.0):
 
 
 # ────────────── CLI test ───────────────
+# --- CLI phần cuối ---
 if __name__ == "__main__":
     import argparse, pathlib, sys
 
@@ -109,6 +111,8 @@ if __name__ == "__main__":
     p.add_argument("--voice", default="Zephyr", help="Voice name, e.g. Zephyr, Aoede…")
     p.add_argument("--temp",  type=float, default=1.0, help="Temperature (speed / style)")
     p.add_argument("--input", default="content.txt", help="Input text file")
+    p.add_argument("--max-char", type=int, default=1500)
+
     args = p.parse_args()
 
     if not pathlib.Path(args.input).is_file():
@@ -117,5 +121,24 @@ if __name__ == "__main__":
     with open(args.input, "r", encoding="utf-8") as f:
         text_in = f.read().strip()
 
-    out = generate(text_in, args.voice, args.temp)
-    print(f"\n🎧 Done! Audio file → {out}")
+    out_files = generate_multi(text_in, args.voice, args.temp, args.max_char)
+    print("🎧 Files:", " ".join(out_files))
+
+
+
+# --- NEW helper: sinh file đơn, tái dùng generate() hiện có ---
+def generate_one(text: str, idx: int, voice: str, temp: float) -> str:
+    fname = f"output_{idx}.wav"
+    wav_bytes = generate(text, voice_name=voice, temperature=temp)
+    # generate() của bạn đang SAVE file rồi, nên chỉ cần trả về tên:
+    return fname
+
+
+def generate_multi(text: str, voice: str, temp: float, max_char: int = 1500):
+    parts = split_text(text, max_char=max_char)
+    files = []
+    for i, ptext in enumerate(parts):
+        print(f"⏳ Chunk {i+1}/{len(parts)} ({len(ptext)} chars)")
+        files.append(generate_one(ptext, i, voice, temp))
+    return files
+

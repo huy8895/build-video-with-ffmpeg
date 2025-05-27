@@ -1,7 +1,8 @@
 # split_text.py
 """
 Chia văn bản thành các đoạn ≤ max_char, bảo toàn ranh giới câu.
-Cần thư viện nltk (tokenizer tiếng Anh nhanh, không phụ thuộc model nặng).
+Log ra tiến trình bằng icon để dễ theo dõi.
+Yêu cầu: nltk (pip install nltk) – chỉ tải 'punkt' (~1 MB) lần đầu.
 """
 
 import re
@@ -10,17 +11,17 @@ from typing import List
 import nltk
 from nltk.tokenize import sent_tokenize
 
-# Đảm bảo tokenizer 'punkt' có sẵn (lần đầu sẽ tải ~1 MB)
+# Bảo đảm tokenizer 'punkt' có sẵn (lần đầu CI tải rất nhanh)
 try:
     nltk.data.find("tokenizers/punkt")
-except LookupError:  # CI mới toanh
+except LookupError:
+    print("📥  nltk: tải tokenizer 'punkt'…")
     nltk.download("punkt", quiet=True)
 
 
 def _normalize(text: str) -> str:
     """
-    Bóc tách một số cặp ký tự đặc biệt giống JS (”. → ”. )
-    và chuẩn hoá khoảng trắng thừa.
+    Chuẩn hoá văn bản nhẹ:  ”foo”→ ”. foo”, gộp khoảng trắng thừa.
     """
     text = re.sub(r'”\s+', '” ', text)
     text = re.sub(r'\s+', ' ', text).strip()
@@ -32,37 +33,34 @@ def split_text(text: str, max_char: int) -> List[str]:
     Parameters
     ----------
     text : str
-        Văn bản nguồn (tiếng Anh hoặc đa ngôn ngữ đều được nếu kết thúc bằng .?!)
+        Văn bản nguồn.
     max_char : int
-        Giới hạn ký tự mỗi chunk
+        Giới hạn ký tự mỗi chunk.
 
     Returns
     -------
     List[str]
-        Danh sách các đoạn đã cắt
+        Danh sách các đoạn đã cắt (dưới max_char).
     """
+    print(f"🔍  Đang chuẩn hoá & tách câu…")
     text = _normalize(text)
     sentences = sent_tokenize(text)
+    print(f"✏️   Tổng số câu phát hiện: {len(sentences)}")
 
     chunks, current = [], ""
-    for sentence in sentences:
-        # Thêm khoảng trắng trước câu (trừ câu đầu)
+    for idx, sentence in enumerate(sentences, 1):
         proposed = (current + " " + sentence).strip() if current else sentence
         if len(proposed) <= max_char:
             current = proposed
         else:
             if current:
                 chunks.append(current)
-            current = sentence  # start new chunk
+                print(f"✂️   Tạo chunk #{len(chunks)} ({len(current)} ký tự)")
+            current = sentence
     if current:
         chunks.append(current)
+        print(f"✂️   Tạo chunk #{len(chunks)} ({len(current)} ký tự)")
+
+    print(f"✅ Hoàn tất chia: {len(chunks)} chunk (≤{max_char} ký tự)\n")
     return chunks
 
-
-# ---------- ví dụ test nhanh ----------
-if __name__ == "__main__":
-    demo = ("Welcome back to Onyx Shadowing English. "
-            "This is a tiny example. We want to cut it smartly! "
-            "Each chunk must stay under 60 characters. Ready?")
-    for i, part in enumerate(split_text(demo, max_char=60), 1):
-        print(f"[{i}] {part} ({len(part)} chars)")

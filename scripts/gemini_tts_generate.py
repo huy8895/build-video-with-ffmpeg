@@ -2,6 +2,7 @@
 import os, mimetypes, struct
 from google import genai
 from google.genai import types
+import json
 
 
 def save_binary_file(file_name: str, data: bytes):
@@ -100,8 +101,28 @@ def generate(text: str, voice_name: str = "Zephyr", temperature: float = 1.0):
     save_binary_file(filename, wav_bytes)
     return filename
 
+# ────────────── helper sinh 1 file ──────────────
+def generate_one(text: str, idx: int, voice: str, temp: float) -> str:
+    chunk_tag = f"#{idx+1:02d}"
+    print(f"🎙️  Bắt đầu TTS {chunk_tag} – {len(text)} ký tự, voice {voice}")
+    fname = f"output_{idx}.wav"
+    generate(text, voice_name=voice, temperature=temp)   # Tái dùng hàm cũ (đã tự save)
+    print(f"✅ Hoàn thành TTS {chunk_tag} → {fname}\n")
+    return fname
+
+
+# ────────────── chia & sinh nhiều file ──────────────
+def generate_multi_from_json(json_path: str, voice: str, temp: float):
+    chunks = json.loads(open(json_path, encoding="utf-8").read())
+    files = []
+    for i, chunk in enumerate(chunks):
+        files.append(generate_one(chunk, i, voice, temp))
+    return files
+
+
 
 # ────────────── CLI test ───────────────
+# --- CLI phần cuối ---
 if __name__ == "__main__":
     import argparse, pathlib, sys
 
@@ -109,6 +130,7 @@ if __name__ == "__main__":
     p.add_argument("--voice", default="Zephyr", help="Voice name, e.g. Zephyr, Aoede…")
     p.add_argument("--temp",  type=float, default=1.0, help="Temperature (speed / style)")
     p.add_argument("--input", default="content.txt", help="Input text file")
+
     args = p.parse_args()
 
     if not pathlib.Path(args.input).is_file():
@@ -117,5 +139,10 @@ if __name__ == "__main__":
     with open(args.input, "r", encoding="utf-8") as f:
         text_in = f.read().strip()
 
-    out = generate(text_in, args.voice, args.temp)
-    print(f"\n🎧 Done! Audio file → {out}")
+    chunks_json = "chunks.json"
+    out_files = generate_multi_from_json(chunks_json, args.voice, args.temp)
+    print("🎧 Files:", " ".join(out_files))
+
+
+
+

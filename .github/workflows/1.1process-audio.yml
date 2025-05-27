@@ -103,23 +103,13 @@ jobs:
           pip install --upgrade pip
           pip install setuptools-rust openai-whisper
 
-      - name: 🔗 Chuẩn hóa định dạng và nối file audio (.mp3 hoặc .wav)
+      - name: 🔗 Nối tất cả file .mp3
         run: |
-          mkdir -p merged fixed_mp3
-          # Tìm toàn bộ file audio có định dạng .mp3 hoặc .wav và sắp xếp
-          find audio -maxdepth 1 -type f \( -iname "*.mp3" -o -iname "*.wav" \) | sort -V > merged/sorted.txt
-      
-          # Duyệt từng file và convert về .mp3 thật sự
-          i=1
+          mkdir -p merged
           while read f; do
-            ffmpeg -y -i "$f" -vn -ar 44100 -ac 2 -b:a 256k "fixed_mp3/$i.mp3"
-            echo "file '$PWD/fixed_mp3/$i.mp3'" >> merged/list.txt
-            i=$((i+1))
+            echo "file '$PWD/$f'" >> merged/list.txt
           done < merged/sorted.txt
-      
-          # Nối tất cả các file mp3 đã chuẩn hóa
           ffmpeg -f concat -safe 0 -i merged/list.txt -c copy merged/merged.mp3
-
 
       - name: 🐢 Điều chỉnh tốc độ & âm lượng audio
         run: |
@@ -147,7 +137,7 @@ jobs:
 
       - name: 🚀 Gửi tin nhắn Telegram
         run: |
-          export MESSAGE="✅Done ${{ github.workflow }} ! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | WhisperModel: $WHISPER_MODEL | Speed: $SPEED | Lang: $LANGUAGE | ✅ Done! 📁 $FOLDER_URL 🔗 View run: $RUN_URL"
+          export MESSAGE="✅Done ${{ github.workflow }} ! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | WhisperModel: $WHISPER_MODEL | Speed: $SPEED | Lang: $LANGUAGE | ✅ Done! 📁 $FOLDER_URL"
           node scripts/send_telegram_message.js
           node scripts/sendMail.js
         env:
@@ -157,7 +147,7 @@ jobs:
       - name: 📛 Notify Telegram if job failed
         if: failure()
         run: |
-          export MESSAGE="❌ ${{ github.workflow }} thất bại! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | 📁 $FOLDER_URL 🔗 View run: $RUN_URL"
+          export MESSAGE="❌ ${{ github.workflow }} thất bại! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | 📁 $FOLDER_URL"
           node scripts/send_telegram_message.js
           node scripts/sendMail.js
         env:

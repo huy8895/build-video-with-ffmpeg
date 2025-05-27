@@ -112,7 +112,7 @@ jobs:
           # Duyệt từng file và convert về .mp3 thật sự
           i=1
           while read f; do
-            ffmpeg -y -i "$f" -vn -ar 44100 -ac 2 -b:a 192k "fixed_mp3/$i.mp3"
+            ffmpeg -y -i "$f" -vn -ar 44100 -ac 2 -b:a 256k "fixed_mp3/$i.mp3"
             echo "file '$PWD/fixed_mp3/$i.mp3'" >> merged/list.txt
             i=$((i+1))
           done < merged/sorted.txt

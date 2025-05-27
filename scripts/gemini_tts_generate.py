@@ -2,7 +2,7 @@
 import os, mimetypes, struct
 from google import genai
 from google.genai import types
-from split_text import split_text
+import json
 
 
 def save_binary_file(file_name: str, data: bytes):
@@ -112,17 +112,13 @@ def generate_one(text: str, idx: int, voice: str, temp: float) -> str:
 
 
 # ────────────── chia & sinh nhiều file ──────────────
-def generate_multi(text: str, voice: str, temp: float, max_char: int = 1500):
-    print(f"📐 Đang chia văn bản (≤{max_char} ký tự mỗi đoạn)…")
-    parts = split_text(text, max_char=max_char)
-    print(f"🔹 Tìm được {len(parts)} đoạn cần xử lý.\n")
-
+def generate_multi_from_json(json_path: str, voice: str, temp: float):
+    chunks = json.loads(open(json_path, encoding="utf-8").read())
     files = []
-    for i, ptext in enumerate(parts):
-        files.append(generate_one(ptext, i, voice, temp))
-
-    print(f"🏁 Hoàn tất – tạo {len(files)} file audio.")
+    for i, chunk in enumerate(chunks):
+        files.append(generate_one(chunk, i, voice, temp))
     return files
+
 
 
 # ────────────── CLI test ───────────────
@@ -134,7 +130,6 @@ if __name__ == "__main__":
     p.add_argument("--voice", default="Zephyr", help="Voice name, e.g. Zephyr, Aoede…")
     p.add_argument("--temp",  type=float, default=1.0, help="Temperature (speed / style)")
     p.add_argument("--input", default="content.txt", help="Input text file")
-    p.add_argument("--max-char", type=int, default=1500)
 
     args = p.parse_args()
 
@@ -144,7 +139,8 @@ if __name__ == "__main__":
     with open(args.input, "r", encoding="utf-8") as f:
         text_in = f.read().strip()
 
-    out_files = generate_multi(text_in, args.voice, args.temp, args.max_char)
+    chunks_json = "chunks.json"
+    out_files = generate_multi_from_json(chunks_json, args.voice, args.temp)
     print("🎧 Files:", " ".join(out_files))
 
 

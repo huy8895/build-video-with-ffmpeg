@@ -91,6 +91,10 @@ jobs:
           ls -lh input/
           cp input/content.txt .  # đưa về root cho tiện
 
+      - name: 🛠️ Split text with Node
+        run: |
+          npm install compromise
+          node scripts/split_text.js content.txt 1500
       # ────────────────────────────────────────────────
       # 2. Sinh TTS
       # ────────────────────────────────────────────────
@@ -99,8 +103,7 @@ jobs:
         run: |
           python scripts/gemini_tts_generate.py \
           --voice "${{ inputs.voice_name }}" \
-          --temp  "${{ inputs.speed }}" \
-          --input content.txt
+          --temp  "${{ inputs.speed }}"
           echo "OUTPUT_FILE=output.wav" >> $GITHUB_ENV
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

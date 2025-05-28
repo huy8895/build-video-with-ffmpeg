@@ -1,4 +1,4 @@
-name: 🎧 Process Audio
+name: "🎧 Process Audio WAV"
 
 on:
   workflow_call:
@@ -24,10 +24,10 @@ on:
           - mep
           - dde
       folder_url:
-        description: 'Link folder Google Drive chứa audio.zip và content.txt'
+        description: 'Link folder Google Drive chứa audio.wav (tùy chọn content.txt)'
         required: true
       video_number:
-        description: 'Số Thứ tự video (1, 2, 3, ...)'
+        description: 'Số Thứ tự video (1, 2, 3, …)'
         required: true
 
 jobs:
@@ -50,13 +50,13 @@ jobs:
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
     steps:
-      - name: 📥 Checkout source code
+      - name: "📥 Checkout source code"
         uses: actions/checkout@v4
-        
-      - name: Install dependencies send mail
+
+      - name: "Install dependencies send mail"
         run: npm install nodemailer
 
-      - name: 🧪 Parse CONFIG_JSON into environment variables
+      - name: "🧪 Parse CONFIG_JSON into environment variables"
         id: parse
         run: |
           echo "$CONFIG_JSON" > config.json
@@ -66,56 +66,43 @@ jobs:
           echo "LANGUAGE=$(jq -r '.language' config.json)" >> $GITHUB_ENV
           echo "VOLUME=$(jq -r '.volume' config.json)" >> $GITHUB_ENV
           echo "EMAIL=$(jq -r '.email' config.json)" >> $GITHUB_ENV
-      - name: 🏁 Tạo link đến workflow run
+
+      - name: "🏁 Tạo link đến workflow run"
         run: |
           echo "RUN_URL=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_ENV
+
       - name: "📩 Notify: Start processing AUDIO"
         run: |
-          export MESSAGE="✅Done  📺 Channel: [$CHANNEL] | Video: #$VIDEO_NUMBER 🧠 WhisperModel: $WHISPER_MODEL | 🎚️ Speed: $SPEED | 🗣️ Lang: $LANGUAGE 📁 Folder: $FOLDER_URL 🔗 View run: $RUN_URL"
+          export MESSAGE="🚀Start  📺 Channel: [$CHANNEL] | Video: #$VIDEO_NUMBER 🧠 WhisperModel: $WHISPER_MODEL | 🎚️ Speed: $SPEED | 🗣️ Lang: $LANGUAGE 📁 Folder: $FOLDER_URL 🔗 View run: $RUN_URL"
           node scripts/send_telegram_message.js
           node scripts/sendMail.js
         env:
           CONFIG_EMAIL: ${{ vars.CONFIG_EMAIL }}
-          
-          
-      - name: 🐍 Install Python & Google API packages
+
+      - name: "🐍 Install Python & Google API packages"
         run: pip install google-auth google-api-python-client
 
-      - name: ⬇️ Download audio.zip & content.txt from Google Drive folder
+      - name: "⬇️ Download audio.wav (+ optional content.txt) from Google Drive folder"
         run: |
-          python scripts/download_drive_folder_files.py audio.zip content.txt
+          python scripts/download_drive_folder_files.py audio.wav content.txt || true
 
-      - name: 📁 Kiểm tra file tải về
+      - name: "📁 Kiểm tra file tải về"
         run: ls -lh input/
 
-      - name: 📂 Giải nén file audio.zip
-        run: |
-          rm -rf audio merged
-          mkdir -p audio merged
-          unzip -o input/audio.zip -d audio
-          find audio -maxdepth 1 -type f -name "*.mp3" | sort -V > merged/sorted.txt
-          cat merged/sorted.txt
-
-      - name: 🛠️ Cài đặt ffmpeg và whisper
+      - name: "🛠️ Cài đặt ffmpeg và whisper"
         run: |
           sudo apt update
           sudo apt install -y ffmpeg
           pip install --upgrade pip
           pip install setuptools-rust openai-whisper
 
-      - name: 🔗 Nối tất cả file .mp3
-        run: |
-          mkdir -p merged
-          while read f; do
-            echo "file '$PWD/$f'" >> merged/list.txt
-          done < merged/sorted.txt
-          ffmpeg -f concat -safe 0 -i merged/list.txt -c copy merged/merged.mp3
-
-      - name: 🐢 Điều chỉnh tốc độ & âm lượng audio
+      - name: "🎛️ Chuẩn hóa định dạng & điều chỉnh audio"
         run: |
           mkdir -p adjusted
-          ffmpeg -i merged/merged.mp3 -filter:a "atempo=$SPEED,volume=$VOLUME" -vn adjusted/audio_adjusted.mp3
-      - name: ✍️ Tạo phụ đề SRT
+          # Convert WAV to MP3 and apply speed & volume filters in one pass
+          ffmpeg -y -i input/audio.wav -filter:a "atempo=$SPEED,volume=$VOLUME" -ar 44100 -ac 2 -b:a 256k adjusted/audio_adjusted.mp3
+
+      - name: "✍️ Tạo phụ đề SRT"
         run: |
           whisper adjusted/audio_adjusted.mp3 \
             --language "$LANGUAGE" \
@@ -125,31 +112,29 @@ jobs:
             --max_words_per_line "$MAX_WORDS_PER_LINE" \
             --output_dir output
 
-      - name: 🏷️ Đổi tên & di chuyển file
+      - name: "🏷️ Đổi tên & di chuyển file"
         run: |
           mv output/audio_adjusted.srt transcript.srt
           cp adjusted/audio_adjusted.mp3 audio_adjusted.mp3
 
-      - name: ☁️ Upload lên Google Drive
+      - name: "☁️ Upload lên Google Drive"
         run: |
           export UPLOAD_FILES="audio_adjusted.mp3 transcript.srt"
           python scripts/upload_results_to_drive.py
 
-      - name: 🚀 Gửi tin nhắn Telegram
+      - name: "🚀 Gửi tin nhắn Telegram"
         run: |
-          export MESSAGE="✅Done ${{ github.workflow }} ! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | WhisperModel: $WHISPER_MODEL | Speed: $SPEED | Lang: $LANGUAGE | ✅ Done! 📁 $FOLDER_URL"
+          export MESSAGE="✅Done ${{ github.workflow }} ! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | WhisperModel: $WHISPER_MODEL | Speed: $SPEED | Lang: $LANGUAGE | ✅ Done! 📁 $FOLDER_URL 🔗 View run: $RUN_URL"
           node scripts/send_telegram_message.js
           node scripts/sendMail.js
         env:
           CONFIG_EMAIL: ${{ vars.CONFIG_EMAIL }}
-          
-          
-      - name: 📛 Notify Telegram if job failed
+
+      - name: "📛 Notify Telegram if job failed"
         if: failure()
         run: |
-          export MESSAGE="❌ ${{ github.workflow }} thất bại! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | 📁 $FOLDER_URL"
+          export MESSAGE="❌ ${{ github.workflow }} thất bại! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | 📁 $FOLDER_URL 🔗 View run: $RUN_URL"
           node scripts/send_telegram_message.js
           node scripts/sendMail.js
         env:
           CONFIG_EMAIL: ${{ vars.CONFIG_EMAIL }}
-          

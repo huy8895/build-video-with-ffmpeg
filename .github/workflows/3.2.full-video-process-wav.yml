@@ -1,4 +1,4 @@
-name: 🧩 Full Video Pipeline
+name: 🧩 Full Video Pipeline WAV
 
 on:
   workflow_dispatch:
@@ -24,7 +24,7 @@ on:
 jobs:
   merge_adjust_transcribe:
     name: "merge_adjust_transcribe ${{ inputs.env }} | Video: #${{ inputs.video_number }}"
-    uses: ./.github/workflows/1.1process-audio.yml
+    uses: ./.github/workflows/3.1-process-audio-wav.yml
     with:
       env: ${{ inputs.env }}
       folder_url: ${{ inputs.folder_url }}

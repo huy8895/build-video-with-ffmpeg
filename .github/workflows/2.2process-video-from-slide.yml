@@ -34,10 +34,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - name: 🏁 Tạo link đến workflow run
+        run: |
+          echo "RUN_URL=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_ENV
 
       - name: "📩 Notify: Start render"
         run: |
-          export MESSAGE="▶️ [$CHANNEL] Video #$VIDEO_NUMBER: Bắt đầu RENDER & UPLOAD 🎬"
+          export MESSAGE="▶️ [$CHANNEL] Video #$VIDEO_NUMBER: Bắt đầu RENDER & UPLOAD 🎬 | 🔗 View run: $RUN_URL"
           node scripts/send_telegram_message.js
 
       # ───────────────────────────────────────────────────────────
@@ -94,12 +97,13 @@ jobs:
       # ───────────────────────────────────────────────────────────
       - name: 📄 Convert PPTX → PDF
         run: |
-          soffice --headless --convert-to pdf slides.pptx --outdir .
+          mkdir -p slides_pdf
+          soffice --headless --convert-to pdf --outdir slides_pdf slides.pptx
 
       - name: 🖼 PDF → PNG
         run: |
-          mkdir slides_png
-          pdftoppm -png -r "$DPI" slides.pdf slides_png/slide
+          mkdir -p slides_png
+          pdftoppm -png -r "$DPI" slides_pdf/slides.pdf slides_png/slide
 
       - name: 📝 Build input.txt
         run: IMAGES_DIR=slides_png node scripts/build_input_list.js
@@ -133,11 +137,11 @@ jobs:
         if: ${{ env.UPLOAD_TO_YOUTUBE == 'true' }}
         run: |
           YT_LINK=$(cat yt_link.txt)
-          export MESSAGE="🎉 [$CHANNEL] Video #$VIDEO_NUMBER đã upload! 👉 $YT_LINK"
+          export MESSAGE="🎉 [$CHANNEL] Video #$VIDEO_NUMBER đã upload! 👉 $YT_LINK | 🔗 View run: $RUN_URL"
           node scripts/send_telegram_message.js
 
       - name: 📛 Notify failure
         if: failure()
         run: |
-          export MESSAGE="❌ Render/Upload FAILED – [$CHANNEL] #$VIDEO_NUMBER | $FOLDER_URL"
+          export MESSAGE="❌ Render/Upload FAILED – [$CHANNEL] #$VIDEO_NUMBER | $FOLDER_URL | 🔗 View run: $RUN_URL"
           node scripts/send_telegram_message.js

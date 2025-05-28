@@ -1,0 +1,126 @@
+name: 🗣 Test Gemini TTS from Drive
+
+# Chạy thủ công trong tab Actions
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: 'Chọn môi trường (ose, mep, dde)'
+        required: true
+        default: 'ose'
+        type: choice
+        options:
+          - ose
+          - mep
+          - dde
+      folder_url:
+        description: "Google Drive folder URL (chứa content.txt)"
+        required: true
+      voice_name:
+        description: "Tên voice (ví dụ Aoede)"
+        required: true
+        default: "Aoede"
+        type: choice
+        options:
+        - Zephyr
+        - Puck
+        - Charon
+        - Kore
+        - Fenrir
+        - Leda
+        - Orus
+        - Aoede
+        - Callirrhoe
+        - Autonoe
+        - Enceladus
+        - Iapetus
+        - Umbriel
+        - Algieba
+        - Despina
+        - Erinome
+        - Algenib
+        - Rasalgethi
+        - Laomedeia
+        - Achernar
+        - Alnilam
+        - Schedar
+        - Gacrux
+        - Pulcherrima
+        - Achird
+        - Zubenelgenubi
+        - Vindemiatrix
+        - Sadachbia
+        - Sadaltager
+        - Sulafat
+      speed:
+        description: "Voice speed / temperature (ví dụ 1.0)"
+        required: false
+        default: "1.0"
+      upload_to_drive:
+        description: "Upload kết quả lên Drive? (true/false)"
+        required: false
+        default: "false"
+
+jobs:
+  generate-tts:
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.env }}
+    # Biến môi trường dùng cho các script Google API hiện có
+    env:
+      FOLDER_URL:      ${{ inputs.folder_url }}
+      GG_REFRESH_TOKEN: ${{ secrets.GG_REFRESH_TOKEN }}
+      YT_CLIENT_ID:     ${{ secrets.YT_CLIENT_ID }}
+      YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+      GEMINI_API_KEY:   ${{ secrets.GEMINI_API_KEY }}
+      UPLOAD_TO_DRIVE:  ${{ inputs.upload_to_drive }}
+
+    steps:
+      - name: 📥 Checkout source code
+        uses: actions/checkout@v4
+
+      - name: 📦 Install Python dependencies
+        run: pip install google-auth google-api-python-client google-genai nltk
+
+      # ────────────────────────────────────────────────
+      # 1. Tải content.txt từ Google Drive
+      # ────────────────────────────────────────────────
+      - name: 📂 Download content.txt from Drive
+        run: |
+          python scripts/download_drive_folder_files.py content.txt
+          ls -lh input/
+          cp input/content.txt .  # đưa về root cho tiện
+
+      - name: 🛠️ Split text with Node
+        run: |
+          npm install compromise
+          node scripts/split_text.js content.txt 1500
+      # ────────────────────────────────────────────────
+      # 2. Sinh TTS
+      # ────────────────────────────────────────────────
+      - name: 🗣 Generate TTS
+        id: tts
+        run: |
+          python scripts/gemini_tts_generate.py \
+          --voice "${{ inputs.voice_name }}" \
+          --temp  "${{ inputs.speed }}"
+          echo "OUTPUT_FILE=output.wav" >> $GITHUB_ENV
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+      # ────────────────────────────────────────────────
+      # 3. (Tùy chọn) Upload lên Drive
+      # ────────────────────────────────────────────────
+      - name: ☁️ Upload WAV to Drive (optional)
+#        if: env.UPLOAD_TO_DRIVE == 'true'
+        run: |
+          export UPLOAD_FILES="$OUTPUT_FILE"
+          python scripts/upload_results_to_drive.py
+
+      # ────────────────────────────────────────────────
+      # 4. Hiển thị kết quả
+      # ────────────────────────────────────────────────
+      - name: 📜 Show generated file
+        run: |
+          echo "🎧 Generated audio file: $OUTPUT_FILE"
+          file "$OUTPUT_FILE"

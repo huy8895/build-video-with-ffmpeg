@@ -1,0 +1,16 @@
+{
+  "background": "assets/AEL-background.jpg",
+  "isOnlySubtitle": true,
+  "textOptions": {
+    "x": 1.4,
+    "y": 2.5,
+    "w": 7.2,
+    "h": 0.635,
+    "fontSize": 30,
+    "color": "FFFFFF",
+    "fontFace": "Open Sans",
+    "align": "center",
+    "valign": "top",
+    "wrap": true
+  }
+}

@@ -54,10 +54,12 @@ jobs:
     steps:
       - name: 📅 Checkout source code
         uses: actions/checkout@v4
-
+      - name: 🏁 Tạo link đến workflow run
+        run: |
+          echo "RUN_URL=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_ENV
       - name: "📩 Notify: Start processing video"
         run: |
-          export MESSAGE="▶️ [$CHANNEL] Video #$VIDEO_NUMBER: Start ${{ github.workflow }}"
+          export MESSAGE="▶️ [$CHANNEL] Video #$VIDEO_NUMBER: Start ${{ github.workflow }} 🔗 View run: $RUN_URL"
           node scripts/send_telegram_message.js
 
       - name: ✅ Validate CONFIG_JSON content
@@ -82,6 +84,9 @@ jobs:
           echo "MAX_OFFSET=$(jq -r '.maxOffset' config.json)" >> $GITHUB_ENV
           echo "ADD_INTRO=$(jq -r '.add_intro' config.json)" >> $GITHUB_ENV
           echo "INTRO_FOLDER_URL=$(jq -r '.intro_folder_url' config.json)" >> $GITHUB_ENV
+          echo "isOnlySubtitle=$(jq -r '.isOnlySubtitle' config.json)" >> $GITHUB_ENV
+          echo "EMAIL=$(jq -r '.email' config.json)" >> $GITHUB_ENV
+      
       - name: 🚀 Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -89,7 +94,7 @@ jobs:
 
       - name: 📦 Install Node + Python dependencies
         run: |
-          npm install pptxgenjs fs-extra minimist compromise googleapis
+          npm install pptxgenjs fs-extra minimist compromise googleapis nodemailer
           pip install --upgrade google-api-python-client google-auth google-auth-oauthlib
 
       - name: 📂 Download files from Google Drive folder
@@ -103,9 +108,21 @@ jobs:
           cp input/*.txt . || true
           cp input/background.jpg . || true  # 👈 THÊM DÒNG NÀY
 
-      - name: 🧠 Generate slides-timing.json
+      - name: 🧠 Generate slides-timing.json without isOnlySubtitle
+        if: ${{ env.isOnlySubtitle != 'true' }}
         run: |
           node scripts/generate_timing_json_with_parser.js \
+            --srt transcript.srt \
+            --content content.txt \
+            --maxChar "$MAX_CHAR" \
+            --minChar "$MIN_CHAR" \
+            --matchThreshold "$MATCH_THRESHOLD" \
+            --maxOffset "$MAX_OFFSET"
+
+      - name: 🧠 Generate slides-timing.json with isOnlySubtitle true
+        if: ${{ env.isOnlySubtitle == 'true' }}
+        run: |
+          node scripts/generate_timing_json_with_parser_v2.js \
             --srt transcript.srt \
             --content content.txt \
             --maxChar "$MAX_CHAR" \
@@ -219,11 +236,18 @@ jobs:
         if: ${{ env.UPLOAD_TO_YOUTUBE == 'true' }}
         run: |
           YT_LINK=$(cat yt_link.txt)
-          export MESSAGE="🎉Channel [$CHANNEL] Video #$VIDEO_NUMBER đã được upload! 📺 Xem tại: $YT_LINK"
+          export MESSAGE="🎉Channel [$CHANNEL] Video #$VIDEO_NUMBER đã được upload! 📺 Xem tại: $YT_LINK | 🔗 View run: $RUN_URL"
           node scripts/send_telegram_message.js
-
+          node scripts/sendMail.js
+        env:
+          CONFIG_EMAIL: ${{ vars.CONFIG_EMAIL }}
+          
       - name: 📛 Notify Telegram if job failed
         if: failure()
         run: |
-          export MESSAGE="❌ Job ${{ github.workflow }} thất bại! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | 📁 $FOLDER_URL"
+          export MESSAGE="❌ Job ${{ github.workflow }} thất bại! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | 📁 $FOLDER_URL | 🔗 View run: $RUN_URL"
           node scripts/send_telegram_message.js
+          node scripts/sendMail.js
+        env:
+          CONFIG_EMAIL: ${{ vars.CONFIG_EMAIL }}
+          

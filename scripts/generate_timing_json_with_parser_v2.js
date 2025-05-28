@@ -5,32 +5,32 @@ const minimist = require('minimist');
 
 // ===== Subtitle Parser (From subtitle-parser.js) =====
 function timeToMs(timeString) {
-  const [hours, minutes, rest] = timeString.split(':');
-  const [seconds, millis] = rest.split(',');
-  return (
-      parseInt(hours) * 3600000 +
-      parseInt(minutes) * 60000 +
-      parseInt(seconds) * 1000 +
-      parseInt(millis)
-  );
+    const [hours, minutes, rest] = timeString.split(':');
+    const [seconds, millis] = rest.split(',');
+    return (
+        parseInt(hours) * 3600000 +
+        parseInt(minutes) * 60000 +
+        parseInt(seconds) * 1000 +
+        parseInt(millis)
+    );
 }
 
 function parseSRT(data) {
-  const srt = data.replace(/\r/g, '');
-  const regex = /(\d+)\n(\d{2}:\d{2}:\d{2},\d{3}) --> (\d{2}:\d{2}:\d{2},\d{3})\n([\s\S]*?)(?=\n{2}|$)/g;
-  const result = [];
+    const srt = data.replace(/\r/g, '');
+    const regex = /(\d+)\n(\d{2}:\d{2}:\d{2},\d{3}) --> (\d{2}:\d{2}:\d{2},\d{3})\n([\s\S]*?)(?=\n{2}|$)/g;
+    const result = [];
 
-  let match;
-  while ((match = regex.exec(srt)) !== null) {
-    const id = parseInt(match[1]);
-    const start = timeToMs(match[2]);
-    const end = timeToMs(match[3]);
-    const text = match[4].replace(/\n/g, ' ').trim();
+    let match;
+    while ((match = regex.exec(srt)) !== null) {
+        const id = parseInt(match[1]);
+        const start = timeToMs(match[2]);
+        const end = timeToMs(match[3]);
+        const text = match[4].replace(/\n/g, ' ').trim();
 
-    result.push({id, start, end, text});
-  }
+        result.push({id, start, end, text});
+    }
 
-  return result;
+    return result;
 }
 
 // ===== Helper Functions =====
@@ -52,8 +52,30 @@ function normalizeText(text) {
         'seven': '7',
         'eight': '8',
         'nine': '9',
-        'ten': '10'
+        'ten': '10',
+        'eleven': '11',
+        'twelve': '12',
+        'thirteen': '13',
+        'fourteen': '14',
+        'fifteen': '15',
+        'sixteen': '16',
+        'seventeen': '17',
+        'eighteen': '18',
+        'nineteen': '19',
+        'twenty': '20',
+        'twenty-one': '21',
+        'twenty two': '22',
+        'twenty-three': '23',
+        'twenty-four': '24',
+        'twenty-five': '25',
+        'twenty-six': '26',
+        'twenty-seven': '27',
+        'twenty-eight': '28',
+        'twenty-nine': '29',
+        'thirty': '30',
+        'hundred': '100',
     };
+
 
     // Loại bỏ dấu câu và thay thế từ số bằng số
     const filteredWords = words
@@ -115,110 +137,115 @@ function fuzzyMatchAverage(arr1, arr2) {
 }
 
 /**
- * Split raw text into slides whose length ∈ (½·maxCharLimit, maxCharLimit]
- * using inverse-Fibonacci word-ratios when a sentence is too long.
+ * Split raw text into slide-sized chunks, satisfying
+ *   – maxCharLimit:  slide.length ≤ maxCharLimit   (hard cap)
+ *   – minCharLimit:  slide.length ≥ minCharLimit   (best-effort)
  *
- * @param {string} content        Full text
- * @param {number} maxCharLimit   Max characters per slide
- * @returns {string[]}            Slides
+ * 1. Cắt theo câu → push() tự đảm bảo ≤ maxCharLimit (có cắt token dài).
+ * 2. Hai lượt “mượn từ”:
+ *      • Pass thuận  (trái → phải)  kéo từ slide kế tiếp.
+ *      • Pass ngược  (phải → trái)  kéo từ slide trước.
+ *    Nhờ đó hầu như không còn slide < minCharLimit trừ phi thực sự không còn chỗ.
  */
-function processRawContent(content, maxCharLimit, minCharLimit) {
-    const halfMax    = minCharLimit ? minCharLimit : maxCharLimit / 2;
+function processRawContent(content, maxCharLimit, minCharLimit = 0) {
+    const slides = [];
 
-    /* ---------- inverse Fibonacci ratios: ½, ⅓, ⅕, ⅛, ⅒, … ---------- */
-    const fib = [1, 1];
-    while (fib.length < 12) fib.push(fib.at(-1) + fib.at(-2));
-    const ratios = fib.slice(2).map(f => 1 / f);            // [½, ⅓, ⅕, ⅛, …]
+    /* ---------------- helper: push(), tự cắt token dài ---------------- */
+    const push = (chunk) => {
+        chunk = chunk.trim();
+        if (!chunk) return;
 
-    /* ---------- helper: pick a chunk of words that keeps slide in range ---------- */
-    function takeChunk(words, currentLen) {
-        const total = words.length;
-        // 1) ưu tiên đoạn khiến slide đạt ngay ≥ halfMax
-        for (const r of ratios) {
-            const cnt = Math.max(1, Math.floor(total * r));
-            const chunk = words.slice(0, cnt).join(" ");
-            const len   = currentLen + chunk.length;
-            if (len <= maxCharLimit && len >= halfMax) return {chunk, cnt};
+        if (chunk.length <= maxCharLimit) {
+            slides.push(chunk);
+            return;
         }
-        // 2) nếu không đạt được ≥ halfMax, lấy đoạn lớn nhất vẫn ≤ maxCharLimit
-        for (let cnt = total; cnt >= 1; --cnt) {
-            const chunk = words.slice(0, cnt).join(" ");
-            if (currentLen + chunk.length <= maxCharLimit)
-                return {chunk, cnt};
-        }
-        // Không lấy được gì (hiếm): trả 0
-        return {chunk: "", cnt: 0};
-    }
 
-    /* ---------- main loop ---------- */
-    const slides     = [];
-    let currentSlide = "";
+        // Token-wise split cho chuỗi quá dài
+        const tokens = nlp(chunk).terms().out("array");
+        let piece = "";
+        tokens.forEach((tok, idx) => {
+            const sep = idx < tokens.length - 1 ? " " : "";
+            if (tok.length > maxCharLimit) {
+                if (piece.trim()) {
+                    slides.push(piece.trim());
+                    piece = "";
+                }
+                for (let s = 0; s < tok.length; s += maxCharLimit) {
+                    slides.push(tok.slice(s, s + maxCharLimit));
+                }
+                return;
+            }
+            if ((piece + tok + sep).length > maxCharLimit) {
+                slides.push(piece.trim());
+                piece = "";
+            }
+            piece += tok + sep;
+        });
+        if (piece.trim()) slides.push(piece.trim());
+    };
 
+    /* ---------------- STEP 1: tách theo câu ---------------- */
     const sentences = nlp(content).sentences().out("array");
-    for (let sentence of sentences) {
-        sentence = sentence.trim();
-        if (!sentence) continue;
+    let current = "";
 
-        /* ===== 1. slide hiện tại RỖNG ===== */
-        if (currentSlide === "") {
-            if (sentence.length <= maxCharLimit) {
-                currentSlide = sentence + " ";
-                continue;
+    sentences.forEach((sent) => {
+        const add = sent.trim() + " ";
+        if ((current + add).length <= maxCharLimit) {
+            current += add;
+        } else {
+            push(current);
+            current = add;
+        }
+    });
+    push(current); // slide cuối
+
+    /* ---------------- STEP 2: khử slide ngắn ---------------- */
+    if (minCharLimit > 0) {
+        /* —— Pass thuận: kéo từ slide kế —— */
+        for (let i = 0; i < slides.length - 1; i++) {
+            if (slides[i].length >= minCharLimit) continue;
+
+            let nextWords = slides[i + 1].split(/\s+/);
+            while (
+                slides[i].length < minCharLimit &&
+                nextWords.length &&
+                slides[i].length + 1 + nextWords[0].length <= maxCharLimit
+                ) {
+                slides[i] += (slides[i].endsWith(" ") ? "" : " ") + nextWords.shift();
             }
-            // câu quá dài → cắt theo tỉ lệ nghịch-Fib
-            let words = nlp(sentence).terms().out("array");
-            while (words.length) {
-                const {chunk, cnt} = takeChunk(words, 0);
-                currentSlide = chunk + " ";
-                slides.push(currentSlide.trim());
-                currentSlide = "";
-                words = words.slice(cnt);
+            slides[i + 1] = nextWords.join(" ");
+            if (!slides[i + 1]) {
+                slides.splice(i + 1, 1);
+                i--; // giữ nguyên chỉ số để xét lại slide hiện tại
             }
-            continue;
         }
 
-        /* ===== 2. slide đã có nội dung ===== */
-        if (currentSlide.length + sentence.length <= maxCharLimit) {
-            // thêm nguyên câu
-            currentSlide += sentence + " ";
-            continue;
-        }
+        /* —— Pass ngược: kéo từ slide trước —— */
+        for (let i = slides.length - 1; i > 0; i--) {
+            if (slides[i].length >= minCharLimit) continue;
 
-        // 2.1 nếu thêm cả câu sẽ vượt max → phải chia
-        let words = nlp(sentence).terms().out("array");
-
-        // 2.1.a slide chưa đủ "dày" (< halfMax) → bồi cho đạt ≥ halfMax
-        if (currentSlide.length < halfMax) {
-            const need   = takeChunk(words, currentSlide.length);
-            currentSlide += need.chunk + " ";
-            words = words.slice(need.cnt);
-        }
-
-        // đẩy slide (đã chắc chắn ≥ halfMax)
-        slides.push(currentSlide.trim());
-        currentSlide = "";
-
-        // 2.1.b xử lý phần còn lại của câu
-        while (words.length) {
-            if (words.join(" ").length <= maxCharLimit) {
-                // còn lại đủ nhỏ → thành slide mới (hoặc slide cuối)
-                currentSlide = words.join(" ") + " ";
-                words = [];
-            } else {
-                const {chunk, cnt} = takeChunk(words, 0);
-                currentSlide = chunk + " ";
-                slides.push(currentSlide.trim());
-                currentSlide = "";
-                words = words.slice(cnt);
+            let prevWords = slides[i - 1].split(/\s+/);
+            while (
+                slides[i].length < minCharLimit &&
+                prevWords.length &&
+                slides[i].length + 1 + prevWords[prevWords.length - 1].length <= maxCharLimit
+                ) {
+                const word = prevWords.pop();
+                slides[i] = word + " " + slides[i];
+            }
+            slides[i - 1] = prevWords.join(" ");
+            if (!slides[i - 1]) {
+                slides.splice(i - 1, 1);
+                i++; // dịch chỉ số vì mảng rút bớt
             }
         }
     }
 
-    /* ---------- đẩy slide cuối (có thể < halfMax) ---------- */
-    if (currentSlide.trim()) slides.push(currentSlide.trim());
-
-    return slides;
+    /* ---------------- cleanup & return ---------------- */
+    return slides.map((s) => s.trim()).filter(Boolean);
 }
+
+
 // Hàm để tạo timing cho từng slide
 function generateTimings(srtData, slides, matchThreshold, maxOffset) {
     console.log('generateTimings');
@@ -255,14 +282,6 @@ function generateTimings(srtData, slides, matchThreshold, maxOffset) {
 
         }
 
-        const firtstSlideWord = slideSplit[0];
-        const firstSrtWord = arraySrtSplit[0];
-        // Nếu từ đầu của slide khác từ đầu của srt
-        if(firstSrtWord !== firtstSlideWord) {
-            console.log('[info] arraySrtSplit: ', arraySrtSplit);
-            console.warn('[warning] Trường hợp: từ đầu tiên trong slide không giống từ đầu tiên trong srt', firstSrtWord, firtstSlideWord);
-        }
-
         const lastSlideWord = slideSplit.at(-1);
         const lastSrtWord = arraySrtSplit.at(-1);
 
@@ -274,7 +293,7 @@ function generateTimings(srtData, slides, matchThreshold, maxOffset) {
                 lastSrtWord);
 
             //TH1: Lùi từ cuối của srt split array đến giá trị trùng với từ cuối cùng trong slide
-            console.log("TH1: Lùi từ cuối của srt split array đến giá trị trùng với từ cuối cùng trong slide")
+            //lặp lùi từ cuối cùng của srt đến giá trị maxOffset.
             let indexToPop = 0;
             for (let i = 0; i < maxOffset; i++) {
                 let wordOfSrtAt = arraySrtSplit.at(-1 - i);
@@ -284,32 +303,32 @@ function generateTimings(srtData, slides, matchThreshold, maxOffset) {
                     break;
                 }
             }
-            let matchedInPop = indexToPop > 0;
 
+            //Loại bỏ phần tử trong arraySrtSplit
             while(indexToPop > 1) {
                 console.warn('Loại bỏ phần tử trong arraySrtSplit', arraySrtSplit.at(-1));
                 arraySrtSplit.pop();
                 indexToPop--;
             }
 
-            //TH2: Tiến từ availableSrtData đến giá trị trùng với từ cuối cùng trong slide
-            if (!matchedInPop) {
-                console.log("TH2: Tiến từ availableSrtData đến giá trị trùng với từ cuối cùng trong slide");
-                let indexToPush = 0;
-                for (let i = 0; i < maxOffset; i++) {
-                    let nextSrtWord = availableSrtData.at(slideSplit.length + i);
-                    if (nextSrtWord && lastSlideWord === normalizeText(nextSrtWord.text)) {
-                        console.warn('Khớp với từ trong array SRT tiếp theo → thêm vào arraySrtSplit', lastSlideWord, normalizeText(nextSrtWord.text));
-                        indexToPush = i + 1;
-                        break;
-                    }
-                }
+            //TH2: Tiến từ giá trị đầu tiên của availableSrtData đến giá trị trùng với từ cuối cùng của slide
+            let indexToPush = 0;
 
-                for (let i = 0; i < indexToPush; i++) {
-                    let nextSrtItem = normalizeText(availableSrtData[slideSplit.length + i].text);
-                    console.warn('Thêm phần tử vào arraySrtSplit', nextSrtItem);
-                    arraySrtSplit.push(nextSrtItem);
+            //Lặp tiến sang phải từ cuối dùng của srt đến maxOffset
+            for (let i = 0; i < maxOffset; i++) {
+                let nextSrtWord = availableSrtData.at(slideSplit.length + i);
+                if(nextSrtWord && lastSlideWord === normalizeText(nextSrtWord.text)) {
+                    console.warn('Khớp với từ trong array SRT tiếp theo → loại bỏ từ cuối cùng của SRT', lastSlideWord, normalizeText(nextSrtWord.text));
+                    indexToPush = i + 1; // +1 vì i bắt đầu từ 0
+                    break;
                 }
+            }
+
+            //Thêm phần tử vào arraySrtSplit
+            for (let i = 0; i < indexToPush; i++) {
+                let nextSrtItem = normalizeText(availableSrtData[slideSplit.length + i].text);
+                console.warn('Thêm phần tử vào arraySrtSplit', nextSrtItem);
+                arraySrtSplit.push(nextSrtItem);
             }
         }
         // console.info('arraySrtSplit sau khi xử lý: ', arraySrtSplit);
@@ -318,23 +337,23 @@ function generateTimings(srtData, slides, matchThreshold, maxOffset) {
 
         console.log('equal array: ', equalWithPercentage);
         if (parseInt(equalWithPercentage) < 100) {
-            console.warn('[warning] !== 100 equal array: ', equalWithPercentage)
-            console.debug('[debug] normalizedSlide : ', normalizedSlide);
-            console.debug('[debug] arraySrtSplit: ', arraySrtSplit);
+            console.warn('!== 100 equal array: ', equalWithPercentage)
+            console.debug('normalizedSlide : ', normalizedSlide);
+            console.debug('arraySrtSplit: ', arraySrtSplit);
         } else {
-            console.debug('[debug] === 100% ===> passed ===');
+            console.debug('=== 100% ===> passed ===');
         }
         if (equalWithPercentage >= matchThreshold) {
             console.log('equalWithPercentage: ',equalWithPercentage);
             startIndex = 0;
             endIndex = srtIndex + arraySrtSplit.length - 1;
         } else {
-            console.error('[error] not equalWithPercentage: ',equalWithPercentage);
+            console.error('not equalWithPercentage: ',equalWithPercentage);
             throw Error('not equalWithPercentage');
         }
 
         if (startIndex == null || endIndex == null) {
-            console.error('[error] lỗi không tìm thấy SRT khớp cho slide: ', slide);
+            console.error('lỗi không tìm thấy SRT khớp cho slide: ', slide);
             throw  Error('startIndex == null || endIndex == null');
         }
 
@@ -354,7 +373,8 @@ function generateTimings(srtData, slides, matchThreshold, maxOffset) {
             }
             // nếu khoong thì lấy trung bình của srt cuối cùng sủa slide hiện tại và srt đầu của slide tiếp theo
             else {
-                endTime = (availableSrtData[endIndex + 1].start + availableSrtData[endIndex].end) / 2;
+                // endTime = (availableSrtData[endIndex + 1].start + availableSrtData[endIndex].end) / 2;
+                endTime = (availableSrtData[endIndex + 1].start + availableSrtData[endIndex].end) * 0.5;
                 console.log("--> end word of slide in srt: ", availableSrtData[endIndex].text);
             }
             lastSlideEndTime = endTime;
@@ -367,7 +387,7 @@ function generateTimings(srtData, slides, matchThreshold, maxOffset) {
             });
 
             // Loại bỏ các SRT entry đã khớp khỏi availableSrtData
-           availableSrtData.splice(startIndex, endIndex - startIndex + 1);
+            availableSrtData.splice(startIndex, endIndex - startIndex + 1);
         } else {
             // Nếu không tìm thấy mục SRT khớp, gán thời gian mặc định
             console.warn(`Không tìm thấy SRT khớp cho slide: "${slide}"`);
@@ -388,40 +408,40 @@ function generateTimings(srtData, slides, matchThreshold, maxOffset) {
 
 // ===== Main Entry Point =====
 async function main() {
-  const args = minimist(process.argv.slice(2));
-  console.log("📜 Parsing arguments...");
-  const srtPath = args.srt, contentPath = args.content;
-  const maxChar = parseInt(args.maxChar || 200),
-      minChar = parseInt(args.minChar || 100);
-  const matchThreshold = parseInt(args.matchThreshold || 90);
-  const maxOffset = parseInt(args.maxOffset || 3);
-  console.log(`SRT: ${srtPath}`);
-  console.log(`Content: ${contentPath}`);
-  console.log(`Max char: ${maxChar}`);
-  console.log(`Min char: ${minChar}`);
-  console.log(`matchThreshold: ${matchThreshold}`);
-  console.log(`maxOffset: ${maxOffset}`);
+    const args = minimist(process.argv.slice(2));
+    console.log("📜 Parsing arguments...");
+    const srtPath = args.srt, contentPath = args.content;
+    const maxChar = parseInt(args.maxChar || 200),
+        minChar = parseInt(args.minChar || 100);
+    const matchThreshold = parseInt(args.matchThreshold || 90);
+    const maxOffset = parseInt(args.maxOffset || 3);
+    console.log(`SRT: ${srtPath}`);
+    console.log(`Content: ${contentPath}`);
+    console.log(`Max char: ${maxChar}`);
+    console.log(`Min char: ${minChar}`);
+    console.log(`matchThreshold: ${matchThreshold}`);
+    console.log(`maxOffset: ${maxOffset}`);
 
 
-  console.log("📁 Reading files...");
-  const srtContent = fs.readFileSync(srtPath, 'utf-8');
-  const rawContent = fs.readFileSync(contentPath, 'utf-8');
+    console.log("📁 Reading files...");
+    const srtContent = fs.readFileSync(srtPath, 'utf-8');
+    const rawContent = fs.readFileSync(contentPath, 'utf-8');
 
-  const srtData = parseSRT(srtContent);
-  console.log(`📜 Loaded ${srtData.length} subtitle entries.`);
+    const srtData = parseSRT(srtContent);
+    console.log(`📜 Loaded ${srtData.length} subtitle entries.`);
 
-  const slides = processRawContent(rawContent, maxChar, minChar);
-  const timings = generateTimings(srtData, slides, matchThreshold,maxOffset);
+    const slides = processRawContent(rawContent, maxChar, minChar);
+    const timings = generateTimings(srtData, slides, matchThreshold,maxOffset);
 
-  const jsonData = timings.map(t => ({
-    text: t.slide,
-    timing: parseFloat((t.duration / 1000).toFixed(2))
-  }));
-  fs.writeJsonSync('slides-timing.json', jsonData, {spaces: 2});
-  console.log("💾 File 'slides-timing.json' created successfully!");
+    const jsonData = timings.map(t => ({
+        text: t.slide,
+        timing: parseFloat((t.duration / 1000).toFixed(2))
+    }));
+    fs.writeJsonSync('slides-timing.json', jsonData, {spaces: 2});
+    console.log("💾 File 'slides-timing.json' created successfully!");
 }
 
 main().catch(err => {
-  console.error("[error] 🔥 Error:", err);
-  process.exit(1);
+    console.error("🔥 Error:", err);
+    process.exit(1);
 });

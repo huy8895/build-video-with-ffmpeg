@@ -1,13 +1,14 @@
 {
   "background": "assets/MEP-background.jpg",
+  "isOnlySubtitle": false,
   "textOptions": {
-  "x": 0.4,
-  "y": 1.307,
-  "w": 5.677,
-  "h": 2.313,
-    "fontSize": 25,
+    "x": 0.4,
+    "y": 1.307,
+    "w": 5.677,
+    "h": 2.313,
+    "fontSize": 28,
     "color": "#593526",
-    "fontFace": "Comfortaa",
+    "fontFace": "Nunito",
     "align": "justify",
     "valign": "top",
     "wrap": true

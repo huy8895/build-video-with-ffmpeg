@@ -1,0 +1,42 @@
+name: 🧩 Full Video Pipeline WAV
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "Chọn môi trường (ose, mep, dde)"
+        required: true
+        default: "ose"
+        type: choice
+        options:
+          - ose
+          - mep
+          - dde
+          - kunzyPE
+          - AnkEL
+      folder_url:
+        description: "Google Drive folder URL"
+        required: true
+      video_number:
+        description: "Số thứ tự video"
+        required: true
+
+jobs:
+  merge_adjust_transcribe:
+    name: "merge_adjust_transcribe ${{ inputs.env }} | Video: #${{ inputs.video_number }}"
+    uses: ./.github/workflows/3.1-process-audio-wav.yml
+    with:
+      env: ${{ inputs.env }}
+      folder_url: ${{ inputs.folder_url }}
+      video_number: ${{ inputs.video_number }}
+    secrets: inherit
+
+  process_from_drive:
+    name: "process_from_drive ${{ inputs.env }} | Video: #${{ inputs.video_number }}"
+    needs: merge_adjust_transcribe
+    uses: ./.github/workflows/1.2process-video.yml
+    with:
+      env: ${{ inputs.env }}
+      folder_url: ${{ inputs.folder_url }}
+      video_number: ${{ inputs.video_number }}
+    secrets: inherit

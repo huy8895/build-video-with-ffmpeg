@@ -14,6 +14,8 @@ on:
           - dde
           - kunzyPE
           - AnkEL
+          - AnkEL2
+          - kunzyPE2
       folder_url:
         description: "Google Drive folder URL"
         required: true

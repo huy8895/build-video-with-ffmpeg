@@ -4,7 +4,7 @@ name: ⏱️ Process Timing JSON & Upload
   workflow_call:
     inputs:
       env:           { required: true, type: string }
-      file_url:      { required: true, type: string }   # URL file timing JSON trên Drive
+      folder_url:      { required: true, type: string }   # URL file timing JSON trên Drive
       video_number:  { required: true, type: string }
     secrets:
       GG_REFRESH_TOKEN:   { required: true }
@@ -18,7 +18,7 @@ name: ⏱️ Process Timing JSON & Upload
         default: ose
         type: choice
         options: [ose, mep, dde]
-      file_url:
+      folder_url:
         description: "Google Drive URL của slides-timing.json"
         required: true
       video_number:
@@ -34,7 +34,7 @@ jobs:
       name: ${{ inputs.env }}
 
     env:
-      FILE_URL:           ${{ inputs.file_url }}
+      FOLDER_URL:           ${{ inputs.folder_url }}
       CHANNEL:            ${{ inputs.env }}
       VIDEO_NUMBER:       ${{ inputs.video_number }}
       GG_REFRESH_TOKEN:   ${{ secrets.GG_REFRESH_TOKEN }}

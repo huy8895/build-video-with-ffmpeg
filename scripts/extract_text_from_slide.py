@@ -2,7 +2,8 @@ from pptx import Presentation
 import json
 import os
 
-pptx_file = "slides.pptx"
+pptx_file = "input/slides.pptx"
+
 if not os.path.exists(pptx_file):
     raise FileNotFoundError("slides.pptx not found")
 

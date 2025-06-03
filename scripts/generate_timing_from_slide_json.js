@@ -305,7 +305,6 @@ async function main() {
 
   console.log("📁 Reading files...");
   const srtContent = fs.readFileSync(srtPath, 'utf-8');
-  const rawContent = fs.readFileSync(contentPath, 'utf-8');
 
   const srtData = parseSRT(srtContent);
   console.log(`📜 Loaded ${srtData.length} subtitle entries.`);

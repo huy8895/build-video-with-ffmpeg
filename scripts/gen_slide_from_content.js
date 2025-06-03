@@ -28,10 +28,7 @@ let rawContent = fs.readFileSync(contentPath, "utf8").trim();
 // ---- Clean text -----------------------------------------------------------
 function cleanText(text) {
     return nlp(text)
-        .normalize({ punctuation: true, unicode: true, whitespace: true })
         .out("text")
-        .replace(/[^\w\s]|_/g, "")
-        .replace(/\s+/g, " ")
         .trim();
 }
 rawContent = cleanText(rawContent);

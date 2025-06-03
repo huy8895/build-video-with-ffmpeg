@@ -25,46 +25,36 @@ if (!fs.existsSync(contentPath)) {
 }
 let rawContent = fs.readFileSync(contentPath, "utf8").trim();
 
-// ---- Clean text -----------------------------------------------------------
-function cleanText(text) {
-    return nlp(text)
-        .out("text")
-        .trim();
-}
-rawContent = cleanText(rawContent);
-
 // ---- Split text -----------------------------------------------------------
 const maxChar = parseInt(config.maxChar || "200", 10);
 const minChar = parseInt(config.minChar || "100", 10);
 
-const slideTexts = splitTextUsingNLP(rawContent, maxChar, minChar);
-function splitTextUsingNLP(text, maxLen, minLen) {
+const slideTexts = splitText(rawContent, maxChar);
+
+function splitText(text, charLimit) {
+    console.log('split text')
     const doc = nlp(text);
-    const paragraphs = doc.split("\n").map(p => p.trim()).filter(p => p.length > 0);
-    let chunks = [];
+    const sentences = doc.sentences().out('array')
 
-    paragraphs.forEach(paragraph => {
-        const sentences = nlp(paragraph).sentences().out('array');
-        let current = "";
+    let currentChunk = '';
+    const results = [];
 
-        for (let sentence of sentences) {
-            if ((current + sentence).length <= maxLen) {
-                current += sentence + " ";
-            } else {
-                if (current.length >= minLen) {
-                    chunks.push(current.trim());
-                    current = sentence + " ";
-                } else {
-                    current += sentence + " ";
-                }
+    sentences.forEach(sentence => {
+        if ((currentChunk.length + sentence.length) <= charLimit) {
+            currentChunk += ' ' + sentence;
+        } else {
+            if (currentChunk) {
+                results.push(currentChunk);
             }
-        }
-        if (current.length >= minChar) {
-            chunks.push(current.trim());
+            currentChunk = sentence;
         }
     });
 
-    return chunks;
+    if (currentChunk) {
+        results.push(currentChunk);
+    }
+
+    return results;
 }
 
 // ---- Background setup -----------------------------------------------------

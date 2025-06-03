@@ -11,5 +11,6 @@
     "align": "justify",
     "valign": "top",
     "wrap": true
-  }
+  },
+  "maxChar": 150
 }

@@ -139,6 +139,11 @@ jobs:
           YT_LINK=$(cat yt_link.txt)
           export MESSAGE="🎉 [$CHANNEL] Video #$VIDEO_NUMBER đã upload! 👉 $YT_LINK | 🔗 View run: $RUN_URL"
           node scripts/send_telegram_message.js
+      - name: 📩 Notify success
+        if: ${{ env.UPLOAD_TO_YOUTUBE != 'true' }}
+        run: |
+          export MESSAGE="🎉 [$CHANNEL] Video #$VIDEO_NUMBER đã render xong! 👉 $FOLDER_URL"
+          node scripts/send_telegram_message.js
 
       - name: 📛 Notify failure
         if: failure()

@@ -64,7 +64,7 @@ jobs:
 
       - name: 📥 Download slides.pptx from Drive
         run: |
-          python scripts/download_drive_folder_files.py slides.pptx
+          python scripts/download_drive_folder_files.py slides.pptx transcript.srt
 
       # ───────────────────────────────────────────────────────────
       # 2. Extract text from slides.pptx → slide_content.json
@@ -80,7 +80,7 @@ jobs:
       - name: 🧨 Generate slides-timing.json with processSlideFirst true
         run: |
           node scripts/generate_timing_from_slide_json.js \
-            --srt transcript.srt \
+            --srt input/transcript.srt \
             --slides outputs/slide_content.json \
             --matchThreshold "$MATCH_THRESHOLD" \
             --maxOffset "$MAX_OFFSET"

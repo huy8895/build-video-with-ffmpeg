@@ -106,3 +106,12 @@ jobs:
         run: |
           export MESSAGE="❌ Xử lý timing JSON thất bại! [$CHANNEL] Video #$VIDEO_NUMBER | 🔗 $RUN_URL"
           node scripts/send_telegram_message.js
+  process_video_from_slide:
+    name: "process_video_from_slide ${{ inputs.env }} | Video: #${{ inputs.video_number }}"
+    needs: process-timing
+    uses: ./.github/workflows/2.2process-video-from-slide.yml
+    with:
+      env: ${{ inputs.env }}
+      folder_url: ${{ inputs.folder_url }}
+      video_number: ${{ inputs.video_number }}
+    secrets: inherit

@@ -88,6 +88,9 @@ jobs:
       # ─────────────────────────────
       # 4. Upload kết quả lên Drive
       # ─────────────────────────────
+      - name: mv timing
+        run: mv slides-timing.json timings.json
+        
       - name: ☁️ Upload processed timing
         run: |
           export UPLOAD_FILES="timings.json"

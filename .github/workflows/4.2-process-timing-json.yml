@@ -1,0 +1,102 @@
+name: ⏱️ Process Timing JSON & Upload
+
+"on":
+  workflow_call:
+    inputs:
+      env:           { required: true, type: string }
+      file_url:      { required: true, type: string }   # URL file timing JSON trên Drive
+      video_number:  { required: true, type: string }
+    secrets:
+      GG_REFRESH_TOKEN:   { required: true }
+      TELEGRAM_BOT_TOKEN: { required: true }
+      TELEGRAM_CHAT_ID:   { required: true }
+
+  workflow_dispatch:                       # Chạy tay từ UI
+    inputs:
+      env:
+        description: "Chọn môi trường (ose, mep, dde)"
+        default: ose
+        type: choice
+        options: [ose, mep, dde]
+      file_url:
+        description: "Google Drive URL của slides-timing.json"
+        required: true
+      video_number:
+        description: "Video number"
+        default: "0"
+        required: true
+
+jobs:
+  process-timing:
+    name: "Timing | ${{ inputs.env }} | #${{ inputs.video_number }}"
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.env }}
+
+    env:
+      FILE_URL:           ${{ inputs.file_url }}
+      CHANNEL:            ${{ inputs.env }}
+      VIDEO_NUMBER:       ${{ inputs.video_number }}
+      GG_REFRESH_TOKEN:   ${{ secrets.GG_REFRESH_TOKEN }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+
+    steps:
+      - name: 📅 Checkout source code
+        uses: actions/checkout@v4
+
+      - name: 🏁 Link đến run
+        run: echo "RUN_URL=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_ENV
+
+      - name: 📩 Notify - Start processing timing
+        run: |
+          export MESSAGE="⏱️ [$CHANNEL] Video #$VIDEO_NUMBER: Bắt đầu xử lý timing JSON | 🔗 $RUN_URL"
+          node scripts/send_telegram_message.js
+
+      # ───────────────────────────────────────────────────────────
+      # 1. Setup & download slides.pptx
+      # ───────────────────────────────────────────────────────────
+      - name: 📦 Install Python deps
+        run: pip install python-pptx google-api-python-client google-auth google-auth-oauthlib
+
+      - name: 📥 Download slides.pptx from Drive
+        run: |
+          python scripts/download_drive_folder_files.py slides.pptx
+
+      # ───────────────────────────────────────────────────────────
+      # 2. Extract text from slides.pptx → slide_content.json
+      # ───────────────────────────────────────────────────────────
+      - name: 📖 Extract text from PPTX
+        run: |
+          python scripts/extract_text_from_slide.py
+          cat outputs/slide_content.json
+
+      # ─────────────────────────────
+      # 3. Xử lý timing JSON
+      # ─────────────────────────────
+      - name: 🧨 Generate slides-timing.json with processSlideFirst true
+        run: |
+          node scripts/generate_timing_from_slide_json.js \
+            --srt transcript.srt \
+            --slides outputs/slide_content.json \
+            --matchThreshold "$MATCH_THRESHOLD" \
+            --maxOffset "$MAX_OFFSET"
+
+      # ─────────────────────────────
+      # 4. Upload kết quả lên Drive
+      # ─────────────────────────────
+      - name: ☁️ Upload processed timing
+        run: |
+          export UPLOAD_FILES="timings.json"
+          python scripts/upload_results_to_drive.py
+
+      - name: 📩 Notify - Done
+        run: |
+          export MESSAGE="✅ [$CHANNEL] Video #$VIDEO_NUMBER: Hoàn tất xử lý & upload timing JSON | 🔗 $RUN_URL"
+          node scripts/send_telegram_message.js
+
+      - name: 📛 Notify - Fail
+        if: failure()
+        run: |
+          export MESSAGE="❌ Xử lý timing JSON thất bại! [$CHANNEL] Video #$VIDEO_NUMBER | 🔗 $RUN_URL"
+          node scripts/send_telegram_message.js

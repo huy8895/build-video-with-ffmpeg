@@ -109,7 +109,7 @@ jobs:
           cp input/background.jpg . || true  # 👈 THÊM DÒNG NÀY
 
       - name: 🧠 Generate slides-timing.json without isOnlySubtitle
-        if: ${{ env.isOnlySubtitle != 'true' && env.processSlideFirst != 'true'}}
+        if: ${{ env.isOnlySubtitle != 'true' }}
         run: |
           node scripts/generate_timing_json_with_parser.js \
             --srt transcript.srt \
@@ -130,14 +130,7 @@ jobs:
             --matchThreshold "$MATCH_THRESHOLD" \
             --maxOffset "$MAX_OFFSET"
           
-      - name: 🧨 Generate slides-timing.json with processSlideFirst true
-        if: ${{ env.processSlideFirst == 'true' }}
-        run: |
-          node scripts/generate_timing_from_slide_json.js \
-            --srt transcript.srt \
-            --slides outputs/slide_content.json \
-            --matchThreshold "$MATCH_THRESHOLD" \
-            --maxOffset "$MAX_OFFSET"
+
       
       - name: 🗓 Rename slides-timing.json to timings.json
         run: mv slides-timing.json timings.json

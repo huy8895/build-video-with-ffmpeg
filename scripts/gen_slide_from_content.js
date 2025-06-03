@@ -98,6 +98,15 @@ slideTexts.forEach((text, idx) => {
     slide.addText(text, config.textOptions);
 });
 
+// ---- Save slideTexts to JSON ----------------------------------------------
+const slideJson = slideTexts.map((text, idx) => ({
+    slide: idx + 1,
+    content: text
+}));
+
+fs.writeFileSync("slide_texts.json", JSON.stringify(slideJson, null, 2), "utf8");
+console.log("✅ Saved slide_texts.json");
+
 // ---- Save file ------------------------------------------------------------
 pptx.writeFile({ fileName: "slides.pptx" })
     .then(() => console.log("✅ Created slides.pptx"))

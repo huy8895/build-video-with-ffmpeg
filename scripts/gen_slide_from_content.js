@@ -44,14 +44,14 @@ function splitText(text, charLimit) {
             currentChunk += ' ' + sentence;
         } else {
             if (currentChunk) {
-                results.push(currentChunk);
+                results.push(currentChunk.trim());
             }
             currentChunk = sentence;
         }
     });
 
     if (currentChunk) {
-        results.push(currentChunk);
+        results.push(currentChunk.trim());
     }
 
     return results;

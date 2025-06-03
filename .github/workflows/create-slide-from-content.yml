@@ -94,9 +94,9 @@ jobs:
       # ───────────────────────────────────────────────────────────
       # 4. Upload lại lên Google Drive
       # ───────────────────────────────────────────────────────────
-      - name: ☁️ Upload slides.pptx + slide_texts.json lên Drive
+      - name: ☁️ Upload slides.pptx lên Drive
         run: |
-          export UPLOAD_FILES="slides.pptx slide_texts.json"
+          export UPLOAD_FILES="slides.pptx"
           python scripts/upload_results_to_drive.py
 
       - name: "📩 Notify: Đã hoàn tất upload slide"

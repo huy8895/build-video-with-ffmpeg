@@ -1,0 +1,40 @@
+name: 🕹 Audio & Slide Pipeline -v2
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "Chọn môi trường (ose, mep, dde)"
+        required: true
+        default: "ose"
+        type: choice
+        options:
+          - ose
+          - mep
+          - dde
+          - kunzyPE
+      folder_url:
+        description: "Google Drive folder URL"
+        required: true
+      video_number:
+        description: "Số thứ tự video"
+        required: true
+
+jobs:
+  generate_slide:
+    name: "generate_slide ${{ inputs.env }} | Video: #${{ inputs.video_number }}"
+    uses: ./.github/workflows/create-slide-from-content.yml
+    with:
+      env:          ${{ inputs.env }}
+      folder_url:   ${{ inputs.folder_url }}
+      video_number: ${{ inputs.video_number }}
+    secrets: inherit
+  
+  process-audio:
+    name: "process-audio ${{ inputs.env }} | Video: #${{ inputs.video_number }}"
+    uses: ./.github/workflows/1.1process-audio.yml
+    with:
+      env:          ${{ inputs.env }}
+      folder_url:   ${{ inputs.folder_url }}
+      video_number: ${{ inputs.video_number }}
+    secrets: inherit

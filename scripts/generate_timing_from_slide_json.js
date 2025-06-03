@@ -1,6 +1,5 @@
 // generate_timing_json_with_parser.js
 const fs = require('fs-extra');
-const nlp = require('compromise');
 const minimist = require('minimist');
 
 // ===== Subtitle Parser (From subtitle-parser.js) =====

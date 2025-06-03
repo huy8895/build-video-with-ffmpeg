@@ -299,8 +299,6 @@ async function main() {
   const maxOffset = parseInt(args.maxOffset || 3);
   console.log(`SRT: ${srtPath}`);
   console.log(`Slides:  ${slidesPath}`);
-  console.log(`Max char: ${maxChar}`);
-  console.log(`Min char: ${minChar}`);
   console.log(`matchThreshold: ${matchThreshold}`);
   console.log(`maxOffset: ${maxOffset}`);
 

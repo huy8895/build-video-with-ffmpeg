@@ -1,5 +1,5 @@
 {
-  "background": "assets/bg.jpg",
+  "background": "assets/ose-bg-v1.jpg",
   "textOptions": {
     "x": 0.5,
     "y": 0.5,
@@ -11,5 +11,6 @@
     "align": "justify",
     "valign": "top",
     "wrap": true
-  }
+  },
+  "maxChar": 150
 }

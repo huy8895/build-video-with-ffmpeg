@@ -1,5 +1,5 @@
 {
-  "background": "assets/AEL-background.jpg",
+  "background": "assets/KPE_background_2.jpg",
   "isOnlySubtitle": false,
   "textOptions": {
     "x": 0.4,
@@ -14,4 +14,3 @@
     "wrap": true
   }
 }
-

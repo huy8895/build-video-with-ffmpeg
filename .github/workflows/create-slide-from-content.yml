@@ -1,0 +1,122 @@
+name: 📑 Generate Slides from content.txt (NLP Split)
+
+on:
+  workflow_call:
+    inputs:
+      env:
+        required: true
+        type: string
+      folder_url:
+        required: true
+        type: string
+      video_number:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      env:
+        description: 'Chọn môi trường (ose, mep, dde)'
+        default: 'ose'
+        type: choice
+        options: [ose, mep, dde]
+      video_number:
+        description: 'Video number'
+        default: '0'
+        required: true
+      folder_url:
+        description: 'Google Drive folder URL'
+        required: true
+
+jobs:
+  make-slides:
+    name: "Slides | ${{ inputs.env }} | #${{ inputs.video_number }}"
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.env }}
+
+    env:
+      FOLDER_URL:         ${{ inputs.folder_url }}
+      CHANNEL:            ${{ inputs.env }}
+      VIDEO_NUMBER:       ${{ inputs.video_number }}
+      CONFIG_JSON:        ${{ vars.CONFIG_JSON }}
+      GG_REFRESH_TOKEN:   ${{ secrets.GG_REFRESH_TOKEN }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+      YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+      YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+    steps:
+      - name: 📅 Checkout source code
+        uses: actions/checkout@v4
+
+      - name: 🏁 Tạo link đến workflow run
+        run: echo "RUN_URL=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_ENV
+
+      - name: "📩 Notify: Bắt đầu tạo slide"
+        run: |
+          export MESSAGE="▶️ [$CHANNEL] Video #$VIDEO_NUMBER: Bắt đầu tạo SLIDE 📑 | 🔗 View run: $RUN_URL"
+          node scripts/send_telegram_message.js
+
+      # ───────────────────────────────────────────────────────────
+      # 1. Validate & parse CONFIG_JSON
+      # ───────────────────────────────────────────────────────────
+      - name: ✅ Validate CONFIG_JSON
+        run: |
+          echo "$CONFIG_JSON" > config.json
+          if ! jq -e '(.config_key and .maxChar and .minChar)' config.json > /dev/null; then
+            echo "❌ CONFIG_JSON thiếu trường bắt buộc" && exit 1
+          fi
+
+      - name: 📦 Extract config values
+        run: |
+          echo "$CONFIG_JSON" > config.json
+          echo "CONFIG_KEY=$(jq -r '.config_key' config.json)" >> $GITHUB_ENV
+
+      # ───────────────────────────────────────────────────────────
+      # 2. Cài đặt môi trường + tải nội dung
+      # ───────────────────────────────────────────────────────────
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+
+      - name: 📦 Install Node dependencies
+        run: npm install pptxgenjs fs-extra minimist compromise googleapis
+
+      - name: 🐍 Install Python dependencies (for Drive)
+        run: pip install --upgrade google-api-python-client google-auth google-auth-oauthlib
+
+      - name: 📂 Tải content.txt và background.jpg từ Drive
+        run: |
+          python scripts/download_drive_folder_files.py content.txt background.jpg
+          ls -lh input/
+          cp input/*.txt . || true
+          cp input/background.jpg . || true
+
+      # ───────────────────────────────────────────────────────────
+      # 3. Tạo slide từ content.txt (chia đoạn bằng NLP)
+      # ───────────────────────────────────────────────────────────
+      - name: 🌟 Cài font nếu cần (Crimson Pro...)
+        run: |
+          mkdir -p ~/.fonts && cp assets/fonts/*.ttf ~/.fonts/ && fc-cache -f -v || true
+
+      - name: 🧠 Generate PPTX from content.txt
+        run: node scripts/gen_slide_from_content.js
+        env:
+          CONFIG_KEY: ${{ env.CONFIG_KEY }}
+
+      # ───────────────────────────────────────────────────────────
+      # 4. Upload lại lên Google Drive
+      # ───────────────────────────────────────────────────────────
+      - name: ☁️ Upload slides.pptx lên Drive
+        run: |
+          export UPLOAD_FILES="slides.pptx"
+          python scripts/upload_results_to_drive.py
+
+      - name: "📩 Notify: Đã hoàn tất upload slide"
+        run: |
+          export MESSAGE="🥉 [$CHANNEL] Video #$VIDEO_NUMBER: Đã tạo & upload slides.pptx thành công! | 📂 View file: $FOLDER_URL"
+          node scripts/send_telegram_message.js
+
+      - name: 📛 Notify if fail
+        if: failure()
+        run: |
+          export MESSAGE="❌ Job tạo slide thất bại! [$CHANNEL] Video: #$VIDEO_NUMBER | 📁 $FOLDER_URL | 🔗 View run: $RUN_URL"
+          node scripts/send_telegram_message.js

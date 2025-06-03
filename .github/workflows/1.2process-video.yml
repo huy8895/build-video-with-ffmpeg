@@ -129,7 +129,9 @@ jobs:
             --minChar "$MIN_CHAR" \
             --matchThreshold "$MATCH_THRESHOLD" \
             --maxOffset "$MAX_OFFSET"
+          
 
+      
       - name: 🗓 Rename slides-timing.json to timings.json
         run: mv slides-timing.json timings.json
 

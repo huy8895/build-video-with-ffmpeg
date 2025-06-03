@@ -1,0 +1,77 @@
+name: 📖 Extract Slide Content from PPTX
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: 'Chọn môi trường (ose, mep, dde)'
+        default: 'ose'
+        type: choice
+        options: [ose, mep, dde]
+      video_number:
+        description: 'Video number'
+        default: '0'
+        required: true
+      folder_url:
+        description: 'Google Drive URL to slides.pptx'
+        required: true
+
+jobs:
+  extract-slide-text:
+    name: "Extract | ${{ inputs.env }} | #${{ inputs.video_number }}"
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.env }}
+
+    env:
+      FOLDER_URL:         ${{ inputs.folder_url }}
+      CHANNEL:            ${{ inputs.env }}
+      VIDEO_NUMBER:       ${{ inputs.video_number }}
+      GG_REFRESH_TOKEN:   ${{ secrets.GG_REFRESH_TOKEN }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+      YT_CLIENT_ID:       ${{ secrets.YT_CLIENT_ID }}
+      YT_CLIENT_SECRET:   ${{ secrets.YT_CLIENT_SECRET }}
+    steps:
+      - name: 📅 Checkout source code
+        uses: actions/checkout@v4
+
+      - name: 🏁 Create run link
+        run: echo "RUN_URL=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_ENV
+
+      - name: "📩 Notify: Start extracting text from PPTX"
+        run: |
+          export MESSAGE="🔍 [$CHANNEL] Video #$VIDEO_NUMBER: Đang phân tích nội dung slides.pptx | 🔗 View run: $RUN_URL"
+          node scripts/send_telegram_message.js
+
+      # ───────────────────────────────────────────────────────────
+      # 1. Setup & download slides.pptx
+      # ───────────────────────────────────────────────────────────
+      - name: 📦 Install Python deps
+        run: pip install python-pptx google-api-python-client google-auth google-auth-oauthlib
+
+      - name: 📥 Download slides.pptx from Drive
+        run: |
+          python scripts/download_drive_folder_files.py slides.pptx
+
+      # ───────────────────────────────────────────────────────────
+      # 2. Extract text from slides.pptx → slide_content.json
+      # ───────────────────────────────────────────────────────────
+      - name: 📖 Extract text from PPTX
+        run: |
+          python scripts/extract_text_from_slide.py
+          cat outputs/slide_content.json
+
+      # ───────────────────────────────────────────────────────────
+      # 3. Notify success/failure
+      # ───────────────────────────────────────────────────────────
+      - name: "📩 Notify: Done extracting"
+        run: |
+          export MESSAGE="✅ [$CHANNEL] Video #$VIDEO_NUMBER: Đã phân tích slides.pptx thành công! | 🔗 View run: $RUN_URL"
+          node scripts/send_telegram_message.js
+
+      - name: 📛 Notify if failed
+        if: failure()
+        run: |
+          export MESSAGE="❌ Job phân tích slide thất bại! [$CHANNEL] Video: #$VIDEO_NUMBER | 🔗 View run: $RUN_URL"
+          node scripts/send_telegram_message.js

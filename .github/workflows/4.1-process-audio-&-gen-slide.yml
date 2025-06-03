@@ -1,4 +1,4 @@
-name: 🧩 Full Video Pipeline
+name: 🎏 Audio + Slide Pipeline
 
 on:
   workflow_dispatch:
@@ -13,9 +13,6 @@ on:
           - mep
           - dde
           - kunzyPE
-          - AnkEL
-          - AnkEL2
-          - kunzyPE2
       folder_url:
         description: "Google Drive folder URL"
         required: true
@@ -24,21 +21,20 @@ on:
         required: true
 
 jobs:
-  merge_adjust_transcribe:
-    name: "merge_adjust_transcribe ${{ inputs.env }} | Video: #${{ inputs.video_number }}"
-    uses: ./.github/workflows/1.1process-audio.yml
+  generate_slide:
+    name: "generate_slide ${{ inputs.env }} | Video: #${{ inputs.video_number }}"
+    uses: ./.github/workflows/create-slide-from-content.yml
     with:
-      env: ${{ inputs.env }}
-      folder_url: ${{ inputs.folder_url }}
+      env:          ${{ inputs.env }}
+      folder_url:   ${{ inputs.folder_url }}
       video_number: ${{ inputs.video_number }}
     secrets: inherit
-
-  process_from_drive:
-    name: "process_from_drive ${{ inputs.env }} | Video: #${{ inputs.video_number }}"
-    needs: merge_adjust_transcribe
-    uses: ./.github/workflows/1.2process-video.yml
+  
+  process-audio:
+    name: "process-audio ${{ inputs.env }} | Video: #${{ inputs.video_number }}"
+    uses: ./.github/workflows/1.1process-audio.yml
     with:
-      env: ${{ inputs.env }}
-      folder_url: ${{ inputs.folder_url }}
+      env:          ${{ inputs.env }}
+      folder_url:   ${{ inputs.folder_url }}
       video_number: ${{ inputs.video_number }}
     secrets: inherit

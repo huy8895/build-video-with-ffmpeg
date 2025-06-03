@@ -112,7 +112,7 @@ jobs:
 
       - name: "📩 Notify: Đã hoàn tất upload slide"
         run: |
-          export MESSAGE="✅ [$CHANNEL] Video #$VIDEO_NUMBER: Đã tạo & upload slides.pptx thành công! | 🔗 View run: $RUN_URL"
+          export MESSAGE="🥉 [$CHANNEL] Video #$VIDEO_NUMBER: Đã tạo & upload slides.pptx thành công! | 📂 View file: $FOLDER_URL"
           node scripts/send_telegram_message.js
 
       - name: 📛 Notify if fail

@@ -97,6 +97,19 @@ jobs:
           npm install pptxgenjs fs-extra minimist compromise googleapis nodemailer
           pip install --upgrade google-api-python-client google-auth google-auth-oauthlib
 
+      - name: 🌟 Install font
+        run: |
+          mkdir -p ~/.fonts
+          cp assets/fonts/*.ttf ~/.fonts/
+          fc-cache -f -v
+
+      - name: 💪 Install slide & video dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            poppler-utils \
+            ffmpeg
+
       - name: 📂 Download required files
         run: |
           python scripts/download_drive_folder_files.py transcript.srt audio_adjusted.mp3 background.jpg

@@ -1,0 +1,174 @@
+name: 🏵 Process video with transcript
+
+on:
+  workflow_call:
+    inputs:
+      env:
+        required: true
+        type: string
+      folder_url:
+        required: true
+        type: string
+      video_number:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "Chọn môi trường (ose, mep, dde)"
+        required: true
+        default: "ose"
+        type: choice
+        options:
+          - ose
+          - mep
+          - dde
+      video_number:
+        description: "Video number"
+        required: true
+        default: "0"
+      folder_url:
+        description: "Google Drive folder URL"
+        required: true
+
+jobs:
+  full-process:
+    name: "Video  Channel: ${{ inputs.env }} | Video: #${{ inputs.video_number }}"
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.env }}
+
+    env:
+      CHANNEL: ${{ inputs.env }}
+      FOLDER_URL: ${{ inputs.folder_url }}
+      VIDEO_NUMBER: ${{ inputs.video_number }}
+      CONFIG_JSON: ${{ vars.CONFIG_JSON }}
+      YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+      YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+      YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+      GG_REFRESH_TOKEN: ${{ secrets.GG_REFRESH_TOKEN }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      YOUTUBE_META_JSON: ${{ vars.YOUTUBE_META_JSON }}
+
+    steps:
+      - name: 📅 Checkout source code
+        uses: actions/checkout@v4
+      - name: 🏁 Tạo link đến workflow run
+        run: |
+          echo "RUN_URL=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_ENV
+      - name: "📩 Notify: Start processing video"
+        run: |
+          export MESSAGE="▶️ [$CHANNEL] Video #$VIDEO_NUMBER: Start ${{ github.workflow }} 🔗 View run: $RUN_URL"
+          node scripts/send_telegram_message.js
+
+      - name: ✅ Validate CONFIG_JSON content
+        run: |
+          echo "$CONFIG_JSON" > config.json
+          if ! jq -e '(.dpi and .resolution and .config_key and .upload_to_youtube and .maxChar and .minChar and .matchThreshold and .maxOffset)' config.json > /dev/null; then
+            echo "❌ CONFIG_JSON is missing required fields. Please check JSON structure." && exit 1
+          fi
+
+      - name: 🤖 Parse CONFIG_JSON into environment variables
+        run: |
+          echo "$CONFIG_JSON" > config.json
+          echo "DPI=$(jq -r '.dpi' config.json)" >> $GITHUB_ENV
+          echo "RESOLUTION=$(jq -r '.resolution' config.json)" >> $GITHUB_ENV
+          echo "CONFIG_KEY=$(jq -r '.config_key' config.json)" >> $GITHUB_ENV
+          echo "UPLOAD_TO_YOUTUBE=$(jq -r '.upload_to_youtube' config.json)" >> $GITHUB_ENV
+          echo "UPLOAD_SLIDE_TO_DRIVE=$(jq -r '.upload_slide_to_drive' config.json)" >> $GITHUB_ENV
+          echo "UPLOAD_VIDEO_TO_DRIVE=$(jq -r '.upload_video_to_drive' config.json)" >> $GITHUB_ENV
+          echo "MAX_CHAR=$(jq -r '.maxChar' config.json)" >> $GITHUB_ENV
+          echo "MIN_CHAR=$(jq -r '.minChar' config.json)" >> $GITHUB_ENV
+          echo "MATCH_THRESHOLD=$(jq -r '.matchThreshold' config.json)" >> $GITHUB_ENV
+          echo "MAX_OFFSET=$(jq -r '.maxOffset' config.json)" >> $GITHUB_ENV
+          echo "ADD_INTRO=$(jq -r '.add_intro' config.json)" >> $GITHUB_ENV
+          echo "INTRO_FOLDER_URL=$(jq -r '.intro_folder_url' config.json)" >> $GITHUB_ENV
+          echo "isOnlySubtitle=$(jq -r '.isOnlySubtitle' config.json)" >> $GITHUB_ENV
+          echo "EMAIL=$(jq -r '.email' config.json)" >> $GITHUB_ENV
+      
+      - name: 🚀 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 📦 Install Node + Python dependencies
+        run: |
+          npm install pptxgenjs fs-extra minimist compromise googleapis nodemailer
+          pip install --upgrade google-api-python-client google-auth google-auth-oauthlib
+
+      - name: 📂 Download required files
+        run: |
+          python scripts/download_drive_folder_files.py transcript.srt audio_adjusted.mp3 background.jpg
+          echo "✅ Files downloaded:"
+          ls -lh input/
+          cp input/* .
+
+      - name: 📸 Generate video with background, audio, subtitles
+        run: |
+          ffmpeg -loop 1 -framerate 2 -i background.jpg \
+            -i audio_adjusted.mp3 \
+            -vf "subtitles=transcript.srt:force_style='FontName=Arial,FontSize=24,PrimaryColour=&HFFFFFF&,OutlineColour=&H000000&,BorderStyle=1,Outline=1,Shadow=1'" \
+            -shortest -c:v libx264 -preset slow -crf 18 \
+            -c:a aac -b:a 320k -pix_fmt yuv420p \
+            output.mp4
+
+      - name: 📂 Download INTRO video (if enabled)
+        if: ${{ env.ADD_INTRO == 'true' }}
+        run: |
+          export FOLDER_URL="$INTRO_FOLDER_URL"
+          python scripts/download_drive_folder_files.py intro.mp4
+          cp input/intro.mp4 . || true
+
+      - name: 🛠 Normalize intro.mp4 to match output.mp4
+        if: ${{ env.ADD_INTRO == 'true' }}
+        run: |
+          ffmpeg -i intro.mp4 -r 25 -ar 24000 -ac 1 \
+            -c:v libx264 -preset slow -crf 18 \
+            -c:a aac -b:a 192k \
+            intro_normalized.mp4
+
+      - name: 🎬 Concatenate intro and main video
+        if: ${{ env.ADD_INTRO == 'true' }}
+        run: |
+          ffmpeg \
+            -i intro_normalized.mp4 \
+            -i output.mp4 \
+            -filter_complex "[0:v:0][0:a:0][1:v:0][1:a:0]concat=n=2:v=1:a=1[outv][outa]" \
+            -map "[outv]" -map "[outa]" \
+            -c:v libx264 -preset slow -crf 18 \
+            -c:a aac -b:a 320k \
+            final_output.mp4
+
+      - name: ☁️ Upload to Google Drive
+        run: |
+          if [ "$ADD_INTRO" = "true" ]; then
+            mv final_output.mp4 output.mp4
+          fi
+          export UPLOAD_FILES="output.mp4"
+          python scripts/upload_results_to_drive.py
+
+      - name: 🚀 Upload to YouTube (if enabled)
+        if: ${{ env.UPLOAD_TO_YOUTUBE == 'true' }}
+        run: python scripts/upload_youtube.py
+
+
+      - name: 📩 Send Telegram message with YouTube link (if available)
+        if: ${{ env.UPLOAD_TO_YOUTUBE == 'true' }}
+        run: |
+          YT_LINK=$(cat yt_link.txt)
+          export MESSAGE="🎉Channel [$CHANNEL] Video #$VIDEO_NUMBER đã được upload! 📺 Xem tại: $YT_LINK | 🔗 View run: $RUN_URL"
+          node scripts/send_telegram_message.js
+          node scripts/sendMail.js
+        env:
+          CONFIG_EMAIL: ${{ vars.CONFIG_EMAIL }}
+          
+      - name: 📛 Notify Telegram if job failed
+        if: failure()
+        run: |
+          export MESSAGE="❌ Job ${{ github.workflow }} thất bại! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | 📁 $FOLDER_URL | 🔗 View run: $RUN_URL"
+          node scripts/send_telegram_message.js
+          node scripts/sendMail.js
+        env:
+          CONFIG_EMAIL: ${{ vars.CONFIG_EMAIL }}
+          

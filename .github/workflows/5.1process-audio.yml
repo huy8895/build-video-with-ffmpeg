@@ -1,0 +1,175 @@
+name: 🧭 Process Audio And SRT
+
+on:
+  workflow_call:
+    inputs:
+      env:
+        required: true
+        type: string
+      folder_url:
+        required: true
+        type: string
+      video_number:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      env:
+        description: 'Chọn môi trường (ose, mep, dde)'
+        required: true
+        default: 'ose'
+        type: choice
+        options:
+          - ose
+          - mep
+          - dde
+      folder_url:
+        description: 'Link folder Google Drive chứa audio.zip và content.txt'
+        required: true
+      video_number:
+        description: 'Số Thứ tự video (1, 2, 3, ...)'
+        required: true
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.env }}
+    name: "Audio  Channel: ${{ inputs.env }} | Video: #${{ inputs.video_number }}"
+
+    env:
+      CHANNEL: ${{ inputs.env }}
+      FOLDER_URL: ${{ inputs.folder_url }}
+      VIDEO_NUMBER: ${{ inputs.video_number }}
+      CONFIG_JSON: ${{ vars.CONFIG_JSON }}
+      YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+      YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+      YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+      GG_REFRESH_TOKEN: ${{ secrets.GG_REFRESH_TOKEN }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+    steps:
+      - name: 📥 Checkout source code
+        uses: actions/checkout@v4
+        
+      - name: Install dependencies send mail
+        run: npm install nodemailer
+
+      - name: 🧪 Parse CONFIG_JSON into environment variables
+        id: parse
+        run: |
+          echo "$CONFIG_JSON" > config.json
+          echo "WHISPER_MODEL=$(jq -r '.whisper_model' config.json)" >> $GITHUB_ENV
+          echo "SPEED=$(jq -r '.speed' config.json)" >> $GITHUB_ENV
+          echo "MAX_WORDS_PER_LINE=$(jq -r '.max_words_per_line' config.json)" >> $GITHUB_ENV
+          echo "LANGUAGE=$(jq -r '.language' config.json)" >> $GITHUB_ENV
+          echo "VOLUME=$(jq -r '.volume' config.json)" >> $GITHUB_ENV
+          echo "EMAIL=$(jq -r '.email' config.json)" >> $GITHUB_ENV
+      - name: 🏁 Tạo link đến workflow run
+        run: |
+          echo "RUN_URL=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_ENV
+      - name: "📩 Notify: Start processing AUDIO"
+        run: |
+          export MESSAGE="🏁 Start  Process Audio 🎧| 📺 Channel: [$CHANNEL] | Video: #$VIDEO_NUMBER 🧠 WhisperModel: $WHISPER_MODEL | 🎚️ Speed: $SPEED | 🗣️ Lang: $LANGUAGE 📁 Folder: $FOLDER_URL 🔗 View run: $RUN_URL"
+          node scripts/send_telegram_message.js
+          node scripts/sendMail.js
+        env:
+          CONFIG_EMAIL: ${{ vars.CONFIG_EMAIL }}
+          
+          
+      - name: 🐍 Install Python & Google API packages
+        run: pip install google-auth google-api-python-client
+
+      - name: ⬇️ Download audio.zip & content.txt from Google Drive folder
+        run: |
+          python scripts/download_drive_folder_files.py audio.zip content.txt
+
+      - name: 📁 Kiểm tra file tải về
+        run: ls -lh input/
+
+      - name: 📂 Giải nén file audio.zip
+        run: |
+          rm -rf audio merged
+          mkdir -p audio merged
+          unzip -o input/audio.zip -d audio
+          find audio -maxdepth 1 -type f -name "*.mp3" | sort -V > merged/sorted.txt
+          cat merged/sorted.txt
+
+      - name: 🛠️ Cài đặt ffmpeg và whisper
+        run: |
+          sudo apt update
+          sudo apt install -y ffmpeg
+          pip install --upgrade pip
+          pip install setuptools-rust openai-whisper
+
+      - name: 🔗 Nối tất cả file .mp3
+        run: |
+          mkdir -p merged
+          while read f; do
+            echo "file '$PWD/$f'" >> merged/list.txt
+          done < merged/sorted.txt
+          ffmpeg -f concat -safe 0 -i merged/list.txt -c copy merged/merged.mp3
+
+      - name: 🐢 Điều chỉnh tốc độ & âm lượng audio
+        run: |
+          mkdir -p adjusted
+          
+          # Lấy bitrate gốc của track audio (ví dụ 256000 = 256 kbps)
+          BITRATE=$(ffprobe -v error \
+                    -select_streams a:0 \
+                    -show_entries stream=bit_rate \
+                    -of csv=p=0 \
+                    merged/merged.mp3)
+          
+          # Nếu file gốc là VBR và ffprobe trả về "N/A", fallback về VBR chất lượng cao
+          if [ -z "$BITRATE" ] || [ "$BITRATE" = "N/A" ]; then
+            echo "⚠️  Không đọc được bitrate – dùng VBR chất lượng cao (q=0)."
+            ffmpeg -i merged/merged.mp3 \
+              -filter:a "atempo=$SPEED,volume=$VOLUME" \
+              -c:a libmp3lame -q:a 0 \
+              adjusted/audio_adjusted.mp3
+          else
+            echo "➡️  Mã hoá lại ở $BITRATE bps (giữ nguyên như gốc)."
+            ffmpeg -i merged/merged.mp3 \
+              -filter:a "atempo=$SPEED,volume=$VOLUME" \
+              -c:a libmp3lame -b:a ${BITRATE} \
+              adjusted/audio_adjusted.mp3
+          fi
+
+      - name: ✍️ Tạo phụ đề SRT
+        run: |
+          whisper adjusted/audio_adjusted.mp3 \
+            --model "$WHISPER_MODEL" \
+            --output_format srt \
+            --word_timestamps True \
+            --output_dir output --task transcribe
+
+      - name: 🏷️ Đổi tên & di chuyển file
+        run: |
+          mv output/audio_adjusted.srt transcript.srt
+          cp adjusted/audio_adjusted.mp3 audio_adjusted.mp3
+
+      - name: ☁️ Upload lên Google Drive
+        run: |
+          export UPLOAD_FILES="audio_adjusted.mp3 transcript.srt"
+          python scripts/upload_results_to_drive.py
+
+      - name: 🚀 Gửi tin nhắn Telegram
+        run: |
+          export MESSAGE="🌘Done Process Audio ! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | WhisperModel: $WHISPER_MODEL | Speed: $SPEED | Lang: $LANGUAGE | ✅ Done! 📁 $FOLDER_URL"
+          node scripts/send_telegram_message.js
+          node scripts/sendMail.js
+        env:
+          CONFIG_EMAIL: ${{ vars.CONFIG_EMAIL }}
+          
+          
+      - name: 📛 Notify Telegram if job failed
+        if: failure()
+        run: |
+          export MESSAGE="❌ ${{ github.workflow }} thất bại! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | 📁 $FOLDER_URL"
+          node scripts/send_telegram_message.js
+          node scripts/sendMail.js
+        env:
+          CONFIG_EMAIL: ${{ vars.CONFIG_EMAIL }}
+          

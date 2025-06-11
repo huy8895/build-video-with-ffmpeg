@@ -120,7 +120,7 @@ jobs:
         run: |
           ffmpeg -loop 1 -framerate 2 -i background.jpg \
             -i audio_adjusted.mp3 \
-            -vf "subtitles=transcript.srt:force_style='FontName=Arial,FontSize=24,PrimaryColour=&HFFFFFF&,OutlineColour=&H000000&,BorderStyle=1,Outline=1,Shadow=1'" \
+            -vf "subtitles=transcript.srt:force_style='FontName=Pinyinfont_V2,FontSize=30,PrimaryColour=&HFFFFFF&,OutlineColour=&H000000&,BorderStyle=1,Outline=1,Shadow=1'" \
             -shortest -c:v libx264 -preset slow -crf 18 \
             -c:a aac -b:a 320k -pix_fmt yuv420p \
             output.mp4

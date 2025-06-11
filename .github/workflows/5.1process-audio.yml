@@ -18,11 +18,12 @@ on:
         description: 'Chọn môi trường (ose, mep, dde)'
         required: true
         default: 'ose'
-        type: choice
+        type: string
         options:
           - ose
           - mep
           - dde
+          - cdp
       folder_url:
         description: 'Link folder Google Drive chứa audio.zip và content.txt'
         required: true

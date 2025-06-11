@@ -23,6 +23,7 @@ on:
           - ose
           - mep
           - dde
+          - cdp
       video_number:
         description: "Video number"
         required: true

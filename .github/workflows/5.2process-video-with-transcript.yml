@@ -102,10 +102,10 @@ jobs:
           mkdir -p ~/.fonts
           cp assets/fonts/*.ttf ~/.fonts/
           fc-cache -f -v
-      - name: 🈶 Cài font có Pinyin + Hanzi
+      - name: 📝 Liệt kê các font có sẵn
         run: |
-          sudo apt-get update
-          sudo apt-get install -y fonts-noto fonts-noto-cjk
+          echo "📋 Danh sách font khả dụng:"
+          fc-list : family | sort | uniq
       - name: 💪 Install slide & video dependencies
         run: |
           sudo apt-get update

@@ -9,6 +9,7 @@ const outputList = process.env.OUTPUT_LIST || 'input.txt';
 const timings = JSON.parse(fs.readFileSync(timingFile, 'utf8'));
 const lines   = [];
 
+console.log(`📄 Đang tạo danh sách đầu vào từ ${timingFile}...`, timings);
 timings.forEach((item, idx) => {
     const base  = String(idx + 1);  // index: 1, 2, 3...
     const fileName3 = 'slide-' + base.padStart(3, '0') + '.png';

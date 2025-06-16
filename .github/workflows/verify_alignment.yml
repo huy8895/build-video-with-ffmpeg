@@ -26,6 +26,8 @@ jobs:
   verify:
     name: "Verify | ${{ inputs.env }} | #${{ inputs.video_number }}"
     runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.env }}
 
     ### ==== ENV chung (giống WF cũ để tái-dùng script Python) ====
     env:

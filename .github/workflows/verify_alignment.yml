@@ -57,7 +57,7 @@ jobs:
     - name: 🐍 Install Google API packages
       run: |
         pip install --quiet google-auth google-api-python-client
-        npm install fs-extra compromise
+        npm install fs-extra compromise minimist
 
     # 4. Tải transcript.srt & content.txt về thư mục input/
     - name: ⬇️ Download transcript.srt & content.txt

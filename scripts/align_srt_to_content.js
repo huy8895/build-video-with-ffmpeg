@@ -15,7 +15,7 @@ const minimist = require('minimist');
 /* ----------------------- HELPERS ------------------------- */
 function parseSRT(raw) {
   const srt = raw.replace(/\r/g, '');
-  const regex = /(\d+)\s+(\d{2}:\d{2}:\d{2},\d{3})\s+-->\s+(\d{2}:\d{2}:\d{2},\d{3})\s+([\s\S]*?)(?=\n{2}|$)/g;
+  const regex = /(\d+)\s+(\d{2}:\d{2}:\d{2},\d{3})\s+-->\s+(\d{2}:\d{2}:\d{2},\d{3})\s+([\s\S]*?)(?=\n{.bumptech
   const blocks = [];
   let m;
   while ((m = regex.exec(srt)) !== null) {
@@ -26,37 +26,63 @@ function parseSRT(raw) {
 }
 
 function splitContent(raw, srtBlocks) {
-  // Handle content.txt with or without newlines
   const txt = raw.replace(/\r/g, '').trim();
   const segments = [];
-  let remainingText = txt;
   let lastPos = 0;
 
-  // Use SRT blocks as anchors to segment the content
   for (let i = 0; i < srtBlocks.length; i++) {
-    const srtText = srtBlocks[i].text.replace(/\s+/g, ''); // Normalize for matching
-    const cleanSrt = srtText.replace(/[\p{P}\p{S}]/gu, ''); // Remove punctuation for robust matching
-    const pos = remainingText.replace(/[\p{P}\p{S}]/gu, '').indexOf(cleanSrt);
+    const srtText = srtBlocks[i].text;
+    const sClean = srtText.replace(/\s+/g, ' ').trim(); // Normalize whitespace only
+    let bestPos = -1;
+    let bestSim = 0;
+    let bestSegment = '';
 
-    if (pos === -1) {
-      console.warn(`Warning: Could not find SRT block ${srtBlocks[i].index} in content.txt`);
-      segments.push(''); // Push empty segment to maintain alignment
-      continue;
+    // Search for the best match in the remaining text
+    const remainingText = txt.slice(lastPos);
+    let pos = 0;
+    while ((pos = remainingText.indexOf(srtText, pos)) !== -1) {
+      // Extract segment from pos to end of srtText
+      const segment = remainingText.slice(pos, pos + srtText.length).trim();
+      const sim = similarity(sClean, cleanTxt(segment));
+      if (sim > bestSim) {
+        bestSim = sim;
+        bestPos = lastPos + pos;
+        bestSegment = segment;
+      }
+      pos += 1; // Move to next possible match
     }
 
-    // Extract segment from original text (keeping punctuation)
-    const segment = remainingText.slice(0, pos + srtText.length).trim();
-    segments.push(segment);
-    remainingText = remainingText.slice(pos + srtText.length).trim();
-    lastPos += pos + srtText.length;
+    // If no exact match, try approximate matching
+    if (bestSim < 0.9 && remainingText.length > 0) {
+      const srtClean = srtText.replace(/[\p{P}\p{S}]/gu, '').trim();
+      pos = 0;
+      while ((pos = remainingText.replace(/[\p{P}\p{S}]/gu, '').indexOf(srtClean, pos)) !== -1) {
+        // Estimate segment length to avoid cutting mid-sentence
+        const segment = remainingText.slice(pos, pos + srtText.length + 10).trim();
+        const sim = similarity(sClean, cleanTxt(segment));
+        if (sim > bestSim) {
+          bestSim = sim;
+          bestPos = lastPos + pos;
+          bestSegment = segment;
+        }
+        pos += 1;
+      }
+    }
+
+    if (bestPos === -1) {
+      console.warn(`Warning: Could not find match for SRT block ${srtBlocks[i].index}`);
+      segments.push('');
+    } else {
+      segments.push(bestSegment);
+      lastPos = bestPos + bestSegment.length;
+    }
   }
 
-  // If there's remaining text, warn user
-  if (remainingText.length > 0) {
-    console.warn(`Warning: ${remainingText.length} characters left unmatched in content.txt`);
+  if (lastPos < txt.length) {
+    console.warn(`Warning: ${txt.length - lastPos} characters left unmatched in content.txt`);
   }
 
-  return segments.filter(Boolean);
+  return segments;
 }
 
 function levenshtein(a, b) {
@@ -86,7 +112,6 @@ function similarity(a, b) {
 }
 
 function cleanTxt(str) {
-  // Minimal cleaning: normalize whitespace, preserve punctuation
   return str.replace(/\s+/g, ' ').trim();
 }
 
@@ -124,7 +149,7 @@ async function main() {
 
     if (sim < THR) {
       unmatchedCount++;
-      console.warn(`Warning: Low similarity (${simPercent}%) for SRT block ${srtBlocks[i].index}`);
+      console.warn(`Warning: Low similarity (${simPercent}%) for SRT block ${srtBlocks[i].index}: "${srtText}" vs "${contentText}"`);
     }
   }
 

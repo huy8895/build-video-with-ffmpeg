@@ -38,10 +38,9 @@ function splitContent(raw, srtBlocks) {
     let bestSegment = '';
 
     // Search for the best match in the remaining text
-    const remainingText = txt.slice(lastPos);
+    let remainingText = txt.slice(lastPos);
     let pos = 0;
     while ((pos = remainingText.indexOf(srtText, pos)) !== -1) {
-      // Extract segment from pos to end of srtText
       const segment = remainingText.slice(pos, pos + srtText.length).trim();
       const sim = similarity(sClean, cleanTxt(segment));
       if (sim > bestSim) {
@@ -49,28 +48,37 @@ function splitContent(raw, srtBlocks) {
         bestPos = lastPos + pos;
         bestSegment = segment;
       }
-      pos += 1; // Move to next possible match
+      pos += 1;
     }
 
-    // If no exact match, try approximate matching
-    if (bestSim < 0.9 && remainingText.length > 0) {
-      const srtClean = srtText.replace(/[\p{P}\p{S}]/gu, '').trim();
+    // If no exact match, try approximate matching in full text
+    if (bestSim < 0.8) {
+      remainingText = txt; // Search entire text to avoid cumulative errors
       pos = 0;
-      while ((pos = remainingText.replace(/[\p{P}\p{S}]/gu, '').indexOf(srtClean, pos)) !== -1) {
-        // Estimate segment length to avoid cutting mid-sentence
-        const segment = remainingText.slice(pos, pos + srtText.length + 10).trim();
+      const srtClean = srtText.replace(/[\p{P}\p{S}]/gu, '').toLowerCase().trim();
+      while ((pos = remainingText.replace(/[\p{P}\p{S}]/gu, '').toLowerCase().indexOf(srtClean, pos)) !== -1) {
+        const segment = remainingText.slice(pos, pos + srtText.length + 20).trim();
         const sim = similarity(sClean, cleanTxt(segment));
-        if (sim > bestSim) {
+        if (sim > bestSim && (bestPos === -1 || Math.abs(pos - lastPos) < Math.abs(bestPos - lastPos))) {
           bestSim = sim;
-          bestPos = lastPos + pos;
+          bestPos = pos;
           bestSegment = segment;
         }
         pos += 1;
       }
     }
 
+    // Trim segment to avoid including next block's content
+    if (bestPos !== -1 && i + 1 < srtBlocks.length) {
+      const nextSrtText = srtBlocks[i + 1].text;
+      const nextPos = bestSegment.indexOf(nextSrtText);
+      if (nextPos !== -1) {
+        bestSegment = bestSegment.slice(0, nextPos).trim();
+      }
+    }
+
     if (bestPos === -1) {
-      console.warn(`Warning: Could not find match for SRT block ${srtBlocks[i].index}`);
+      console.warn(`Warning: Could not find match for SRT block ${srtBlocks[i].index}: "${srtText}"`);
       segments.push('');
     } else {
       segments.push(bestSegment);

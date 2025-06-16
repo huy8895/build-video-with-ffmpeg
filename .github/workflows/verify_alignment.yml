@@ -59,9 +59,6 @@ jobs:
     - name: ⬇️ Download transcript.srt & content.txt
       run: |
         python scripts/download_drive_folder_files.py transcript.srt content.txt
-      env:
-        # script tự lấy GG_REFRESH_TOKEN trong env
-        GG_REFRESH_TOKEN: ${{ secrets.GG_REFRESH_TOKEN }}
 
     # 5. Cài node deps (string-similarity) & chạy script align_srt_to_content.js
     - name: 🛠️ Install Node dependencies

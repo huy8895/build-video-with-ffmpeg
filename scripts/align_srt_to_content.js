@@ -15,7 +15,7 @@ const minimist = require('minimist');
 /* ----------------------- HELPERS ------------------------- */
 function parseSRT(raw) {
   const srt = raw.replace(/\r/g, '');
-  const regex = /(\d+)\s+(\d{2}:\d{2}:\d{2},\d{3})\s+-->\s+(\d{2}:\d{2}:\d{2},\d{3})\s+([\s\S]*?)(?=\n{.bumptech
+  const regex = /(\d+)\s+(\d{2}:\d{2}:\d{2},\d{3})\s+-->\s+(\d{2}:\d{2}:\d{2},\d{3})\s+([\s\S]*?)(?=\n{2}|$)/g;
   const blocks = [];
   let m;
   while ((m = regex.exec(srt)) !== null) {

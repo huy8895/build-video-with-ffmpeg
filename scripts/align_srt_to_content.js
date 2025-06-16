@@ -32,7 +32,7 @@ function splitContent(raw, srtBlocks) {
 
   for (let i = 0; i < srtBlocks.length; i++) {
     const srtText = srtBlocks[i].text;
-    const sClean = srtText.replace(/\s+/g, ' ').trim(); // Normalize whitespace only
+    const sClean = cleanTxt(srtText).replace(/[\p{P}\p{S}]/gu, '').toLowerCase().trim();
     let bestPos = -1;
     let bestSim = 0;
     let bestSegment = '';
@@ -40,9 +40,9 @@ function splitContent(raw, srtBlocks) {
     // Search for the best match in the remaining text
     let remainingText = txt.slice(lastPos);
     let pos = 0;
-    while ((pos = remainingText.indexOf(srtText, pos)) !== -1) {
+    while ((pos = remainingText.toLowerCase().replace(/[\p{P}\p{S}]/gu, '').indexOf(sClean, pos)) !== -1) {
       const segment = remainingText.slice(pos, pos + srtText.length).trim();
-      const sim = similarity(sClean, cleanTxt(segment));
+      const sim = similarity(sClean, cleanTxt(segment).replace(/[\p{P}\p{S}]/gu, '').toLowerCase().trim());
       if (sim > bestSim) {
         bestSim = sim;
         bestPos = lastPos + pos;
@@ -51,29 +51,15 @@ function splitContent(raw, srtBlocks) {
       pos += 1;
     }
 
-    // If no exact match, try approximate matching in full text
-    if (bestSim < 0.8) {
-      remainingText = txt; // Search entire text to avoid cumulative errors
-      pos = 0;
-      const srtClean = srtText.replace(/[\p{P}\p{S}]/gu, '').toLowerCase().trim();
-      while ((pos = remainingText.replace(/[\p{P}\p{S}]/gu, '').toLowerCase().indexOf(srtClean, pos)) !== -1) {
-        const segment = remainingText.slice(pos, pos + srtText.length + 20).trim();
-        const sim = similarity(sClean, cleanTxt(segment));
-        if (sim > bestSim && (bestPos === -1 || Math.abs(pos - lastPos) < Math.abs(bestPos - lastPos))) {
-          bestSim = sim;
-          bestPos = pos;
-          bestSegment = segment;
-        }
-        pos += 1;
-      }
-    }
-
-    // Trim segment to avoid including next block's content
-    if (bestPos !== -1 && i + 1 < srtBlocks.length) {
+    // If no good match found (similarity < 0.5), try to find the next block's starting point
+    if (bestSim < 0.5 && i + 1 < srtBlocks.length) {
       const nextSrtText = srtBlocks[i + 1].text;
-      const nextPos = bestSegment.indexOf(nextSrtText);
-      if (nextPos !== -1) {
-        bestSegment = bestSegment.slice(0, nextPos).trim();
+      const nextClean = cleanTxt(nextSrtText).replace(/[\p{P}\p{S}]/gu, '').toLowerCase().trim();
+      pos = remainingText.toLowerCase().replace(/[\p{P}\p{S}]/gu, '').indexOf(nextClean);
+      if (pos !== -1) {
+        bestSegment = remainingText.slice(0, pos).trim();
+        bestPos = lastPos;
+        bestSim = similarity(sClean, cleanTxt(bestSegment).replace(/[\p{P}\p{S}]/gu, '').toLowerCase().trim());
       }
     }
 

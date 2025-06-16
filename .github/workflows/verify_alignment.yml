@@ -35,6 +35,8 @@ jobs:
       GG_REFRESH_TOKEN:   ${{ secrets.GG_REFRESH_TOKEN }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+      YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+      YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
 
     steps:
     # 1. Lấy code repo (đã có scripts/download_drive_folder_files.py & upload_results_to_drive.py)

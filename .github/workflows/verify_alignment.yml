@@ -1,0 +1,99 @@
+name: 🧐 Verify Transcript Alignment
+
+on:
+  workflow_call:
+    inputs:
+      env:          { required: true,  type: string }
+      folder_url:   { required: true,  type: string }
+      video_number: { required: true,  type: string }
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "Chọn môi trường"
+        required: true
+        default: "cdp"
+        type: choice
+        options: [ose, mep, dde, cdp]
+      video_number:
+        description: "Video number"
+        required: true
+        default: "0"
+      folder_url:
+        description: "Google Drive folder URL chứa transcript.srt & content.txt"
+        required: true
+
+jobs:
+  verify:
+    name: "Verify | ${{ inputs.env }} | #${{ inputs.video_number }}"
+    runs-on: ubuntu-latest
+
+    ### ==== ENV chung (giống WF cũ để tái-dùng script Python) ====
+    env:
+      CHANNEL:            ${{ inputs.env }}
+      FOLDER_URL:         ${{ inputs.folder_url }}
+      VIDEO_NUMBER:       ${{ inputs.video_number }}
+      GG_REFRESH_TOKEN:   ${{ secrets.GG_REFRESH_TOKEN }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+
+    steps:
+    # 1. Lấy code repo (đã có scripts/download_drive_folder_files.py & upload_results_to_drive.py)
+    - name: 📥 Checkout source code
+      uses: actions/checkout@v4
+
+    # 2. (Tuỳ chọn) gửi thông báo bắt đầu
+    - name: 🔔 Notify start
+      run: |
+        export MESSAGE="🏁 Start Align Check | [$CHANNEL] Video #$VIDEO_NUMBER"
+        node scripts/send_telegram_message.js || true
+      env:
+        CONFIG_EMAIL: ${{ vars.CONFIG_EMAIL }}
+
+    # 3. Cài Python packages cho Google Drive API
+    - name: 🐍 Install Google API packages
+      run: pip install --quiet google-auth google-api-python-client
+
+    # 4. Tải transcript.srt & content.txt về thư mục input/
+    - name: ⬇️ Download transcript.srt & content.txt
+      run: |
+        python scripts/download_drive_folder_files.py transcript.srt content.txt
+      env:
+        # script tự lấy GG_REFRESH_TOKEN trong env
+        GG_REFRESH_TOKEN: ${{ secrets.GG_REFRESH_TOKEN }}
+
+    # 5. Cài node deps (string-similarity) & chạy script align_srt_to_content.js
+    - name: 🛠️ Install Node dependencies
+      run: |
+        npm install string-similarity csv-stringify
+
+    - name: 📊 Align SRT → content & export CSV
+      run: |
+        node scripts/align_srt_to_content.js \
+             --srt input/transcript.srt \
+             --content input/content.txt \
+             --out alignment_result.csv \
+             --threshold 0.85
+
+    # 6. Upload CSV lên Google Drive cùng folder
+    - name: ☁️ Upload alignment_result.csv lên Google Drive
+      run: |
+        export UPLOAD_FILES="alignment_result.csv"
+        python scripts/upload_results_to_drive.py
+
+    # 7. Thông báo hoàn tất
+    - name: ✅ Notify success
+      if: success()
+      run: |
+        export MESSAGE="✅ Done Align Check | [$CHANNEL] Video #$VIDEO_NUMBER"
+        node scripts/send_telegram_message.js || true
+      env:
+        CONFIG_EMAIL: ${{ vars.CONFIG_EMAIL }}
+
+    # 8. Thông báo khi lỗi
+    - name: ❌ Notify failure
+      if: failure()
+      run: |
+        export MESSAGE="❌ Align Check FAILED | [$CHANNEL] Video #$VIDEO_NUMBER"
+        node scripts/send_telegram_message.js || true
+      env:
+        CONFIG_EMAIL: ${{ vars.CONFIG_EMAIL }}

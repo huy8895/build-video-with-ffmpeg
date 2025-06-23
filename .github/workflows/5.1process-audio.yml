@@ -99,11 +99,15 @@ jobs:
           find audio -maxdepth 1 -type f -name "*.mp3" | sort -V > merged/sorted.txt
           cat merged/sorted.txt
 
-      - name: 🛠️ Cài đặt ffmpeg và whisper
+      - name: 🛠️ Cài đặt FFMPEG
         run: |
           sudo apt update
           sudo apt install -y ffmpeg
           pip install --upgrade pip
+
+      - name: 🔧 Cài đặt Whisper (nếu cần tạo phụ đề)
+        if: ${{ vars.TRANSCRIPT_SRT == 'true' }}
+        run: |
           pip install setuptools-rust openai-whisper
 
       - name: 🔗 Nối tất cả file .mp3

@@ -43,6 +43,7 @@ jobs:
       FOLDER_URL: ${{ inputs.folder_url }}
       VIDEO_NUMBER: ${{ inputs.video_number }}
       CONFIG_JSON: ${{ vars.CONFIG_JSON }}
+      TRANSCRIPT_SRT: ${{ vars.TRANSCRIPT_SRT }}
       YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
       YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
       YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
@@ -139,6 +140,7 @@ jobs:
           fi
 
       - name: ✍️ Tạo phụ đề SRT
+        if: ${{ env.TRANSCRIPT_SRT == 'true' }}
         run: |
           whisper adjusted/audio_adjusted.mp3 \
             --model "$WHISPER_MODEL" \

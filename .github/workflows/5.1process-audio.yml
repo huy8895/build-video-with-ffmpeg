@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: ${{ inputs.env }}
-    name: "Audio  Channel: ${{ inputs.env }} | Video: #${{ inputs.video_number }}"
+    name: "Audio Channel: ${{ inputs.env }} | Video: #${{ inputs.video_number }}"
 
     env:
       CHANNEL: ${{ inputs.env }}
@@ -54,7 +54,7 @@ jobs:
     steps:
       - name: 📥 Checkout source code
         uses: actions/checkout@v4
-        
+
       - name: Install dependencies send mail
         run: npm install nodemailer
 
@@ -68,18 +68,19 @@ jobs:
           echo "LANGUAGE=$(jq -r '.language' config.json)" >> $GITHUB_ENV
           echo "VOLUME=$(jq -r '.volume' config.json)" >> $GITHUB_ENV
           echo "EMAIL=$(jq -r '.email' config.json)" >> $GITHUB_ENV
+
       - name: 🏁 Tạo link đến workflow run
         run: |
-          echo "RUN_URL=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_ENV
+          echo "RUN_URL=https://github.com/${{  github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_ENV
+
       - name: "📩 Notify: Start processing AUDIO"
         run: |
-          export MESSAGE="🏁 Start  Process Audio 🎧| 📺 Channel: [$CHANNEL] | Video: #$VIDEO_NUMBER 🧠 WhisperModel: $WHISPER_MODEL | 🎚️ Speed: $SPEED | 🗣️ Lang: $LANGUAGE 📁 Folder: $FOLDER_URL 🔗 View run: $RUN_URL"
+          export MESSAGE="🏁 Start Process Audio 🎧| 📺 Channel: [$CHANNEL] | Video: #$VIDEO_NUMBER 🧠 WhisperModel: $WHISPER_MODEL | 🎚️ Speed: $SPEED | 🗣️ Lang: $LANGUAGE 📁 Folder: $FOLDER_URL 🔗 View run: $RUN_URL"
           node scripts/send_telegram_message.js
           node scripts/sendMail.js
         env:
           CONFIG_EMAIL: ${{ vars.CONFIG_EMAIL }}
-          
-          
+
       - name: 🐍 Install Python & Google API packages
         run: pip install google-auth google-api-python-client
 
@@ -116,23 +117,21 @@ jobs:
       - name: 🐢 Điều chỉnh tốc độ & âm lượng audio
         run: |
           mkdir -p adjusted
-          
-          # Lấy bitrate gốc của track audio (ví dụ 256000 = 256 kbps)
+
           BITRATE=$(ffprobe -v error \
                     -select_streams a:0 \
                     -show_entries stream=bit_rate \
                     -of csv=p=0 \
                     merged/merged.mp3)
-          
-          # Nếu file gốc là VBR và ffprobe trả về "N/A", fallback về VBR chất lượng cao
+
           if [ -z "$BITRATE" ] || [ "$BITRATE" = "N/A" ]; then
-            echo "⚠️  Không đọc được bitrate – dùng VBR chất lượng cao (q=0)."
+            echo "⚠️ Không đọc được bitrate – dùng VBR chất lượng cao (q=0)."
             ffmpeg -i merged/merged.mp3 \
               -filter:a "atempo=$SPEED,volume=$VOLUME" \
               -c:a libmp3lame -q:a 0 \
               adjusted/audio_adjusted.mp3
           else
-            echo "➡️  Mã hoá lại ở $BITRATE bps (giữ nguyên như gốc)."
+            echo "➡️ Mã hoá lại ở $BITRATE bps (giữ nguyên như gốc)."
             ffmpeg -i merged/merged.mp3 \
               -filter:a "atempo=$SPEED,volume=$VOLUME" \
               -c:a libmp3lame -b:a ${BITRATE} \
@@ -140,7 +139,7 @@ jobs:
           fi
 
       - name: ✍️ Tạo phụ đề SRT
-        if: ${{ env.TRANSCRIPT_SRT == 'true' }}
+        if: ${{ vars.TRANSCRIPT_SRT == 'true' }}
         run: |
           whisper adjusted/audio_adjusted.mp3 \
             --model "$WHISPER_MODEL" \
@@ -148,25 +147,32 @@ jobs:
             --word_timestamps True \
             --output_dir output --task transcribe
 
-      - name: 🏷️ Đổi tên & di chuyển file
+      - name: 🏷️ Đổi tên & di chuyển file phụ đề SRT
+        if: ${{ vars.TRANSCRIPT_SRT == 'true' }}
         run: |
-          mv output/audio_adjusted.srt transcript.srt
+          mkdir -p srt_files
+          mv output/audio_adjusted.srt srt_files/video_caption.srt
+
+      - name: 📁 Copy file audio đã xử lý
+        run: |
           cp adjusted/audio_adjusted.mp3 audio_adjusted.mp3
 
       - name: ☁️ Upload lên Google Drive
         run: |
-          export UPLOAD_FILES="audio_adjusted.mp3 transcript.srt"
+          export UPLOAD_FILES="audio_adjusted.mp3"
+          if [ "$TRANSCRIPT_SRT" = "true" ]; then
+            UPLOAD_FILES="$UPLOAD_FILES transcript.srt"
+          fi
           python scripts/upload_results_to_drive.py
 
       - name: 🚀 Gửi tin nhắn Telegram
         run: |
-          export MESSAGE="🌘Done Process Audio ! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | WhisperModel: $WHISPER_MODEL | Speed: $SPEED | Lang: $LANGUAGE | ✅ Done! 📁 $FOLDER_URL"
+          export MESSAGE="🌘 Done Process Audio! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | WhisperModel: $WHISPER_MODEL | Speed: $SPEED | Lang: $LANGUAGE | ✅ Done! 📁 $FOLDER_URL"
           node scripts/send_telegram_message.js
           node scripts/sendMail.js
         env:
           CONFIG_EMAIL: ${{ vars.CONFIG_EMAIL }}
-          
-          
+
       - name: 📛 Notify Telegram if job failed
         if: failure()
         run: |
@@ -175,4 +181,3 @@ jobs:
           node scripts/sendMail.js
         env:
           CONFIG_EMAIL: ${{ vars.CONFIG_EMAIL }}
-          

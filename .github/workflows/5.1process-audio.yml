@@ -148,13 +148,9 @@ jobs:
             --word_timestamps True \
             --output_dir output --task transcribe
 
-      - name: 🏷️ Đổi tên & di chuyển file phụ đề SRT
+      - name: 🏷️ Đổi tên & di chuyển file
         run: |
-          mkdir -p srt_files
-          mv output/audio_adjusted.srt srt_files/video_caption.srt
-
-      - name: 📁 Copy file audio đã xử lý
-        run: |
+          mv output/audio_adjusted.srt transcript.srt
           cp adjusted/audio_adjusted.mp3 audio_adjusted.mp3
 
       - name: ☁️ Upload lên Google Drive

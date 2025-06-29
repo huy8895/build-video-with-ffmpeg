@@ -102,7 +102,7 @@ jobs:
           if [ -f input/audio.wav ]; then
             echo "AUDIO_SOURCE=wav" >> $GITHUB_ENV
             mkdir -p merged
-            cp input/audio.wav merged/merged.mp3
+            cp input/audio.wav adjusted/audio_adjusted.mp3
           else
             echo "AUDIO_SOURCE=mp3" >> $GITHUB_ENV
           fi
@@ -132,6 +132,7 @@ jobs:
           pip install --upgrade pip setuptools-rust openai-whisper
 
       - name: 🐢 Điều chỉnh tốc độ & âm lượng audio
+        if: env.AUDIO_SOURCE == 'mp3'
         run: |
           mkdir -p adjusted
 

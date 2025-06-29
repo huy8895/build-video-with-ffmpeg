@@ -101,7 +101,7 @@ jobs:
         run: |
           if [ -f input/audio.wav ]; then
             echo "AUDIO_SOURCE=wav" >> $GITHUB_ENV
-            mkdir -p merged
+            mkdir -p adjusted
             cp input/audio.wav adjusted/audio_adjusted.mp3
           else
             echo "AUDIO_SOURCE=mp3" >> $GITHUB_ENV

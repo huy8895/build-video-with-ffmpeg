@@ -116,6 +116,12 @@ jobs:
           find audio -maxdepth 1 -type f -name "*.mp3" | sort -V > merged/sorted.txt
           cat merged/sorted.txt
 
+      - name: 🛠️ Cài đặt FFMPEG & Whisper
+        run: |
+          sudo apt update
+          sudo apt install -y ffmpeg
+          pip install --upgrade pip setuptools-rust openai-whisper
+
       - name: 🔗 Nối tất cả file .mp3
         if: env.AUDIO_SOURCE == 'mp3'
         run: |
@@ -124,12 +130,6 @@ jobs:
             echo "file '$PWD/$f'" >> merged/list.txt
           done < merged/sorted.txt
           ffmpeg -f concat -safe 0 -i merged/list.txt -c copy merged/merged.mp3
-
-      - name: 🛠️ Cài đặt FFMPEG & Whisper
-        run: |
-          sudo apt update
-          sudo apt install -y ffmpeg
-          pip install --upgrade pip setuptools-rust openai-whisper
 
       - name: 🐢 Điều chỉnh tốc độ & âm lượng audio
         if: env.AUDIO_SOURCE == 'mp3'

@@ -158,43 +158,49 @@ jobs:
       # =================================================================
 
 
-      # --- START: MỚI (Luồng xử lý nhiều file WAV) ---
+      # --- START: CẬP NHẬT (Xử lý hiệu quả nhiều file WAV) ---
       # =================================================================
-      # == LUỒNG XỬ LÝ WAV (NHIỀU FILE SONG SONG)
+      # == LUỒNG XỬ LÝ WAV (XỬ LÝ HÀNG LOẠT)
       # =================================================================
-      - name: ✍️ Tạo phụ đề SRT (từ các file WAV, xử lý song song)
+      - name: ✍️ Tạo phụ đề SRT (từ các file WAV, xử lý hàng loạt)
         if: env.AUDIO_SOURCE == 'wav'
         run: |
           set -e
           mkdir -p output
-          echo "🚀 Bắt đầu phiên dịch các file .wav song song..."
+          NUM_FILES=$(ls -1 input/*.wav 2>/dev/null | wc -l)
+          if [ "$NUM_FILES" -eq 0 ]; then
+            echo "⚠️ Không tìm thấy file .wav nào để xử lý."
+            exit 0
+          fi
 
-          # Vòng lặp để chạy whisper cho mỗi file .wav trong thư mục input
-          # Dấu & ở cuối sẽ đẩy tiến trình vào background
-          for wav_file in input/*.wav; do
-            ( # Chạy mỗi file trong một sub-shell riêng để không ảnh hưởng lẫn nhau
-              BASENAME=$(basename "$wav_file" .wav)
-              echo "   - Bắt đầu xử lý file: $wav_file (Basename: $BASENAME)"
-              whisper "$wav_file" \
-                --model "$WHISPER_MODEL" \
-                --output_format srt \
-                --word_timestamps True \
-                --output_dir "output" \
-                --task transcribe
-              
-              # Đổi tên file output theo định dạng mong muốn
-              mv "output/$BASENAME.srt" "transcript-$BASENAME.srt"
-              echo "   - ✅ Hoàn thành: transcript-$BASENAME.srt"
-            ) &
+          echo "🚀 Bắt đầu phiên dịch hàng loạt cho $NUM_FILES file .wav..."
+          echo "Model [$WHISPER_MODEL] sẽ chỉ được tải MỘT LẦN."
+
+          # Bước 1: Chạy whisper cho tất cả các file .wav cùng lúc.
+          # Tool sẽ tự động xử lý tuần tự, nhưng chỉ load model một lần.
+          # `input/*.wav` sẽ được shell expand thành danh sách các file.
+          whisper input/*.wav \
+            --model "$WHISPER_MODEL" \
+            --language "$LANGUAGE" \
+            --output_format srt \
+            --word_timestamps True \
+            --output_dir "output" \
+            --task transcribe
+
+          echo "✅ Phiên dịch hoàn tất. Bắt đầu đổi tên file output..."
+
+          # Bước 2: Đổi tên các file .srt đã tạo để có tiền tố "transcript-"
+          # Whisper sẽ tạo ra file output có cùng tên với file input (ví dụ: audio1.srt)
+          for srt_file in output/*.srt; do
+            BASENAME=$(basename "$srt_file") # Lấy ra "audio1.srt"
+            mv "$srt_file" "transcript-$BASENAME"
+            echo "   - Đã đổi tên thành: transcript-$BASENAME"
           done
 
-          # Chờ tất cả các tiến trình background hoàn thành
-          wait
-          echo "✅ Tất cả các file đã được phiên dịch xong."
+          echo "✅ Tất cả các file đã được đổi tên."
       # =================================================================
       # == KẾT THÚC LUỒNG XỬ LÝ WAV
       # =================================================================
-      # --- END: MỚI ---
 
       # --- START: Thay đổi (Chuẩn bị file upload linh hoạt) ---
       - name: ☁️ Chuẩn bị danh sách file để upload

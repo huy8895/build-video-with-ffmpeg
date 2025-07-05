@@ -1,4 +1,4 @@
-name: 🧭 Process Audio And SRT
+name: 🧭 5.3 Process Audio And SRT wavs
 
 on:
   workflow_call:

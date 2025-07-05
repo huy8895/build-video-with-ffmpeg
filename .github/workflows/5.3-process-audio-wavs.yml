@@ -84,7 +84,7 @@ jobs:
 
       # --- START: Thay đổi ---
       - name: ⬇️ Download all files from Drive folder
-        run: python scripts/download_drive_folder_files.py
+        run: python scripts/download_drive_folder_files_all.py
       # --- END: Thay đổi ---
 
       # --- START: Thay đổi (Logic kiểm tra file linh hoạt hơn) ---

@@ -150,7 +150,8 @@ jobs:
             --model "$WHISPER_MODEL" \
             --output_format srt \
             --word_timestamps True \
-            --output_dir output --task transcribe
+            --max_words_per_line "$MAX_WORDS_PER_LINE" \
+            --output_dir output --task transcribe        
           mv output/audio_adjusted.srt transcript.srt
           cp adjusted/audio_adjusted.mp3 audio_adjusted.mp3
       # =================================================================
@@ -184,6 +185,7 @@ jobs:
             --language "$LANGUAGE" \
             --output_format srt \
             --word_timestamps True \
+            --max_words_per_line "$MAX_WORDS_PER_LINE" \
             --output_dir "output" \
             --task transcribe
 

@@ -19,11 +19,6 @@ on:
         required: true
         default: 'ose'
         type: string
-        options:
-          - ose
-          - mep
-          - dde
-          - cdp
       folder_url:
         description: 'Link folder Google Drive chứa audio.zip hoặc các file .wav'
         required: true

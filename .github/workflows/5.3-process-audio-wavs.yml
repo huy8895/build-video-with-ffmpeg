@@ -83,17 +83,20 @@ jobs:
       # --- END: Thay đổi ---
 
       # --- START: Thay đổi (Logic kiểm tra file linh hoạt hơn) ---
-      - name: 🧪 Xác định nguồn audio (zip hay wav)
+      - name: 🧪 Xác định nguồn audio (zip, mp3 hay wav)
         id: check_source
         run: |
           if [ -f input/audio.zip ]; then
-            echo "✅ Tìm thấy audio.zip. Sẽ xử lý theo luồng MP3."
-            echo "AUDIO_SOURCE=mp3" >> $GITHUB_ENV
+            echo "✅ Tìm thấy audio.zip. Sẽ xử lý theo luồng MP3 (nối file)."
+            echo "AUDIO_SOURCE=mp3_zip" >> $GITHUB_ENV
+          elif ls input/*.mp3 1> /dev/null 2>&1; then
+            echo "✅ Tìm thấy file .mp3 độc lập. Sẽ xử lý theo luồng MP3 hàng loạt."
+            echo "AUDIO_SOURCE=mp3_batch" >> $GITHUB_ENV
           elif ls input/*.wav 1> /dev/null 2>&1; then
             echo "✅ Tìm thấy file .wav. Sẽ xử lý theo luồng WAV."
             echo "AUDIO_SOURCE=wav" >> $GITHUB_ENV
           else
-            echo "❌ Không tìm thấy file 'audio.zip' hoặc bất kỳ file '.wav' nào trong thư mục 'input/'."
+            echo "❌ Không tìm thấy file 'audio.zip', '.mp3' hoặc '.wav' nào trong thư mục 'input/'."
             exit 1
           fi
       # --- END: Thay đổi ---
@@ -198,19 +201,51 @@ jobs:
       # =================================================================
       # == KẾT THÚC LUỒNG XỬ LÝ WAV
       # =================================================================
+      - name: ✍️ Tạo phụ đề SRT (từ các file MP3, xử lý hàng loạt)
+        if: env.AUDIO_SOURCE == 'mp3_batch'
+        run: |
+          set -e
+          mkdir -p output
+          NUM_FILES=$(ls -1 input/*.mp3 2>/dev/null | wc -l)
+          if [ "$NUM_FILES" -eq 0 ]; then
+            echo "⚠️ Không tìm thấy file .mp3 nào để xử lý."
+            exit 0
+          fi
 
+          echo "🚀 Bắt đầu phiên dịch hàng loạt cho $NUM_FILES file .mp3..."
+          echo "Model [$WHISPER_MODEL] sẽ chỉ được tải MỘT LẦN."
+
+          whisper input/*.mp3 \
+            --model "$WHISPER_MODEL" \
+            --language "$LANGUAGE" \
+            --output_format srt \
+            --word_timestamps True \
+            --max_words_per_line "$MAX_WORDS_PER_LINE" \
+            --output_dir "output" \
+            --task transcribe
+
+          echo "✅ Phiên dịch hoàn tất. Bắt đầu đổi tên file output..."
+
+          for srt_file in output/*.srt; do
+            BASENAME=$(basename "$srt_file" .srt)
+            mv "output/$BASENAME.srt" "transcript-$BASENAME.srt"
+            echo "   - Đã đổi tên thành: transcript-$BASENAME.srt"
+          done
+
+          echo "✅ Tất cả các file đã được đổi tên."
       # --- START: Thay đổi (Chuẩn bị file upload linh hoạt) ---
       - name: ☁️ Chuẩn bị danh sách file để upload
         id: prepare_upload
         run: |
-          if [ "${{ env.AUDIO_SOURCE }}" == "mp3" ]; then
+          if [ "${{ env.AUDIO_SOURCE }}" == "mp3_zip" ]; then
             echo "UPLOAD_FILES=audio_adjusted.mp3 transcript.srt" >> $GITHUB_ENV
-          else
-            # Lấy tất cả file transcript-*.srt và các file .wav gốc
-            # tr '\n' ' ' để chuyển danh sách từ ls thành một dòng duy nhất
-            FILE_LIST=$(ls transcript-*.srt input/*.wav | tr '\n' ' ')
+          elif [ "${{ env.AUDIO_SOURCE }}" == "mp3_batch" ] || [ "${{ env.AUDIO_SOURCE }}" == "wav" ]; then
+            FILE_LIST=$(ls transcript-*.srt input/*.{mp3,wav} | tr '\n' ' ')
             echo "File sẽ được upload: $FILE_LIST"
             echo "UPLOAD_FILES=$FILE_LIST" >> $GITHUB_ENV
+          else
+            echo "❌ Không nhận dạng được loại file audio."
+            exit 1
           fi
 
       - name: ☁️ Upload kết quả lên Google Drive

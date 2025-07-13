@@ -120,7 +120,7 @@ jobs:
           cat merged/sorted.txt
 
       - name: 🔗 Nối tất cả file .mp3
-        if: env.AUDIO_SOURCE == 'mp3'
+        if: env.AUDIO_SOURCE == 'mp3_zip'
         run: |
           mkdir -p merged
           while read f; do

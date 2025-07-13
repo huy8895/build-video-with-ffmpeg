@@ -111,7 +111,7 @@ jobs:
       # == LUỒNG XỬ LÝ MP3 (TỪ FILE ZIP)
       # =================================================================
       - name: 📂 Giải nén file audio.zip
-        if: env.AUDIO_SOURCE == 'mp3'
+        if: env.AUDIO_SOURCE == 'mp3_zip'
         run: |
           rm -rf audio merged
           mkdir -p audio merged

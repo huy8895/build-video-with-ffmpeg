@@ -15,10 +15,15 @@ on:
   workflow_dispatch:
     inputs:
       env:
-        description: 'Chọn môi trường (ose, mep, dde)'
+        description: 'Chọn môi trường (ose, mep, dde, jppodcast)'
         required: true
         default: 'ose'
-        type: string
+        type: choice
+        options:
+          - ose
+          - mep
+          - dde
+          - jppodcast
       folder_url:
         description: 'Link folder Google Drive chứa audio.zip hoặc các file .wav'
         required: true

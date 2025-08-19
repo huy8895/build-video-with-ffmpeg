@@ -175,11 +175,7 @@ jobs:
           echo "✅ Translation process completed."
           echo "Generated files:"
           ls -lhR output/
-
-  notify:
-    needs: translate-and-upload # Phụ thuộc vào job trên
-    if: always() # Luôn chạy để gửi thông báo
-    uses: ./.github/workflows/notify-telegram.yml # Gọi reusable workflow
-    with:
-      # Truyền message đã được tạo ở job trước vào
-      message: ${{ needs.translate-and-upload.outputs.summary_message }}
+      - name: "📩 Notify"
+        run: |
+          export MESSAGE=${{ needs.translate-and-upload.outputs.summary_message }}
+          node scripts/send_telegram_message.js

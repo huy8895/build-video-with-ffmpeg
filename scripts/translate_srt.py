@@ -9,13 +9,8 @@ Requires:
 Set your GEMINI_API_KEY as a repo secret / environment variable.
 
 Behavior:
-- Builds a tight prompt that instructs Gemini to return ONLY the translated SRT inside a ```srt code block.
-- Streams the generation, accumulates text, extracts the code fence content, validates SRT format.
-- If validation fails, saves the raw response for debugging to <out_path>.raw.txt and exits with non-zero.
-
-Notes:
-- This script does NOT implement chunking. If your .srt is larger than the model context, you will need chunking by SRT blocks.
-- Intended to be used in GH Actions; failing validation will cause GH Action job to fail.
+- This version uses a non-streaming call to the Gemini API.
+- It waits for the full translation to be generated before processing.
 """
 
 import os
@@ -24,57 +19,15 @@ import argparse
 from google import genai
 from google.genai import types
 
-# Regex for extracting triple-backtick code fence content
-CODE_FENCE_RE = re.compile(r"```(?:\w*\n)?(.*?)```", re.DOTALL)
-# Timecode regex HH:MM:SS,mmm --> HH:MM:SS,mmm
-TIME_RE = re.compile(r"^\d{2}:\d{2}:\d{2},\d{3} --> \d{2}:\d{2}:\d{2},\d{3}$")
-
-
-def read_srt(path):
-    with open(path, "r", encoding="utf-8") as f:
-        return f.read()
-
+# Biến regex để tìm code block đã được loại bỏ vì prompt yêu cầu không dùng markdown
+# Tuy nhiên, hàm extract_code_fence vẫn được giữ lại để phòng trường hợp model vẫn trả về markdown
+CODE_FENCE_RE = re.compile(r'```(?:srt\n)?(.*?)```', re.DOTALL)
 
 def extract_code_fence(text):
     m = CODE_FENCE_RE.search(text)
     if m:
         return m.group(1).strip()
     return text.strip()
-
-
-def is_valid_srt(text):
-    """A lightweight SRT validator.
-    Checks that there are blocks separated by blank lines and each block has:
-      1) an integer index line
-      2) a timecode line with correct format
-      3) at least one text line
-    Returns True if basic structure looks like SRT.
-    """
-    if not text or not text.strip():
-        return False
-
-    # split on blank lines (one or more)
-    blocks = [b.strip() for b in re.split(r"\n\s*\n", text.strip()) if b.strip()]
-    if not blocks:
-        return False
-
-    for block in blocks:
-        lines = block.splitlines()
-        if len(lines) < 2:
-            return False
-        # first line should be an integer index
-        if not re.fullmatch(r"\d+", lines[0].strip()):
-            return False
-        # second line should be a timecode
-        if not TIME_RE.match(lines[1].strip()):
-            return False
-        # there should be at least one non-empty text line following
-        text_lines = [ln for ln in lines[2:] if ln.strip()]
-        if not text_lines:
-            return False
-
-    return True
-
 
 def write_srt_file(path, text):
     if not path.lower().endswith('.srt'):
@@ -83,7 +36,6 @@ def write_srt_file(path, text):
         f.write(text)
     return path
 
-
 def save_raw_debug(path, raw_text):
     raw_path = path + '.raw.txt'
     with open(raw_path, 'w', encoding='utf-8') as f:
@@ -91,8 +43,6 @@ def save_raw_debug(path, raw_text):
     return raw_path
 
 def build_prompt(transcript, target_language):
-    # New, stricter, English prompt that forbids code blocks and any extra text.
-    # It commands the model to act as a pure data transformation endpoint.
     prompt = f"""
 Your task is to act as an automated SRT file translation service.
 You will be provided with an SRT transcript in Chinese. You must translate the text content into {target_language}.
@@ -109,8 +59,7 @@ You will be provided with an SRT transcript in Chinese. You must translate the t
 """
     return prompt
 
-
-# Nếu bạn muốn giữ nguyên mã gốc với genai.Client
+# --- HÀM NÀY ĐÃ ĐƯỢC THAY ĐỔI ---
 def translate_srt_with_gemini(api_key, model, input_srt_text, target_language, thinking_budget=-1):
     client = genai.Client(api_key=api_key)
 
@@ -123,38 +72,38 @@ def translate_srt_with_gemini(api_key, model, input_srt_text, target_language, t
         )
     ]
 
-    # *** THÊM PHẦN NÀY ***
-    safety_settings = {
-        HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-        HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-        HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-    }
-
     generate_content_config = types.GenerateContentConfig(
         thinking_config=types.ThinkingConfig(
             thinking_budget=thinking_budget,
         ),
     )
 
-    output_chunks = []
     try:
-        # *** THÊM safety_settings VÀO ĐÂY ***
-        for chunk in client.models.generate_content_stream(
+        # Sử dụng generate_content để nhận toàn bộ phản hồi một lần
+        response = client.models.generate_content(
             model=model,
             contents=contents,
-            config=generate_content_config,
-            safety_settings=safety_settings,
-        ):
-            if getattr(chunk, 'text', None):
-                print(chunk.text, end='', flush=True)
-                output_chunks.append(chunk.text)
+            generation_config=generate_content_config, # Đổi 'config' thành 'generation_config'
+        )
+
+        # Lấy toàn bộ văn bản từ phản hồi
+        full_text = response.text
+
     except Exception as e:
+        # Nếu có lỗi, kiểm tra xem có thông tin phản hồi nào không
+        # Đôi khi lỗi xảy ra do nội dung bị chặn (blocked)
+        if 'response' in locals() and response.prompt_feedback:
+            raise RuntimeError(f"API call failed with prompt feedback: {response.prompt_feedback}")
         raise RuntimeError(f"Error when calling Gemini API: {e}")
 
-    full_text = ''.join(output_chunks)
+    # Xử lý văn bản như cũ
     clean = extract_code_fence(full_text)
     return full_text, clean
+
+# --- CÁC HÀM KHÁC GIỮ NGUYÊN ---
+def read_srt(path):
+    with open(path, 'r', encoding='utf-8') as f:
+        return f.read()
 
 def main():
     parser = argparse.ArgumentParser(description="Translate Chinese SRT to another language using Gemini API.")
@@ -172,6 +121,8 @@ def main():
     input_text = read_srt(args.input)
 
     print(f"Translating {args.input} -> language: {args.language} using model {args.model} ...")
+
+    # Lệnh gọi hàm không thay đổi, nhưng hành vi bên trong đã thay đổi
     full_text, translated_clean = translate_srt_with_gemini(
         api_key=api_key,
         model=args.model,
@@ -186,14 +137,8 @@ def main():
         safe_lang = args.language.replace(' ', '_')
         out_path = f"{base}.{safe_lang}{ext}"
 
-    # # Validate SRT
-    # if not is_valid_srt(translated_clean):
-    #     # Save raw response for debugging
-    #     raw_path = save_raw_debug(out_path, full_text)
-    #     print(f"\nTranslated output failed SRT validation. Raw output saved to: {raw_path}")
-    #     raise RuntimeError("Translated output is not valid SRT. See raw output for debugging.")
-
     written = write_srt_file(out_path, translated_clean)
+    # Lệnh print này sẽ chỉ chạy sau khi đã dịch xong hoàn toàn
     print(f"\n-> Wrote translated srt to: {written}")
 
 

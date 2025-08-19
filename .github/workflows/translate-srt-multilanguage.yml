@@ -80,6 +80,7 @@ jobs:
       # ────────────────────────────────────────────────
       - name: 🔄 Translate for each language (with error skipping)
         id: run_translations
+        continue-on-error: true
         run: |
           # KHÔNG dùng 'set -e' ở đây để có thể xử lý lỗi trong vòng lặp
           set -uo pipefail

@@ -11,7 +11,7 @@ on:
         options:
           - ose
           - mep
-          - dde
+          - cdp
       srt_path:
         description: 'Đường dẫn tới file .srt trong repo (ví dụ subtitles/episode1.zh.srt)'
         required: true

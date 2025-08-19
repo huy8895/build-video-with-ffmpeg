@@ -1,0 +1,144 @@
+name: 🌐 Translate SRT from Google Drive
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: 'Chọn môi trường (ose, mep, dde)'
+        required: true
+        default: 'ose'
+        type: choice
+        options:
+          - ose
+          - mep
+          - cdp
+      folder_url:
+        description: "Google Drive folder URL chứa file SRT gốc"
+        required: true
+      source_srt_filename:
+        description: "Tên file SRT gốc trong folder (ví dụ: raw_cn.srt)"
+        required: true
+        default: "raw_cn.srt"
+      languages:
+        description: "Danh sách ngôn ngữ đích, cách nhau bằng dấu phẩy (ví dụ: English, Vietnamese)"
+        required: true
+        default: "English, Vietnamese"
+      model:
+        description: 'Gemini model (ví dụ gemini-2.5-pro)'
+        required: false
+        default: 'gemini-2.5-pro'
+      thinking_budget:
+        description: 'Thinking budget (-1 dynamic, 0 off, or positive int)'
+        required: false
+        default: '-1'
+
+jobs:
+  translate-and-upload:
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.env }}
+    env:
+      # Secrets để tương tác với Google Drive API
+      FOLDER_URL:       ${{ inputs.folder_url }}
+      GG_REFRESH_TOKEN: ${{ secrets.GG_REFRESH_TOKEN }}
+      YT_CLIENT_ID:     ${{ secrets.YT_CLIENT_ID }}
+      YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+      # Secret cho Gemini API
+      GEMINI_API_KEY:   ${{ secrets.GEMINI_API_KEY }}
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install google-genai google-auth google-api-python-client
+
+      # ────────────────────────────────────────────────
+      # 1. Tải file SRT gốc từ Google Drive
+      # ────────────────────────────────────────────────
+      - name: 📂 Download source SRT from Drive
+        id: download_srt
+        run: |
+          set -euo pipefail
+          SOURCE_FILE="${{ inputs.source_srt_filename }}"
+          python scripts/download_drive_folder_files.py "$SOURCE_FILE"
+          
+          # Kiểm tra file đã tải về thành công chưa
+          if [ ! -f "input/$SOURCE_FILE" ]; then
+            echo "::error::Failed to download $SOURCE_FILE from Google Drive."
+            exit 1
+          fi
+          
+          echo "SRT_PATH=input/$SOURCE_FILE" >> $GITHUB_ENV
+          echo "SRT_BASE_NAME=$(basename "$SOURCE_FILE" .srt)" >> $GITHUB_ENV
+          echo "Downloaded file:"
+          ls -lh "input/$SOURCE_FILE"
+
+      # ────────────────────────────────────────────────
+      # 2. Lặp qua các ngôn ngữ và dịch
+      # ────────────────────────────────────────────────
+      - name: 🔄 Translate for each language
+        id: run_translations
+        run: |
+          set -euo pipefail
+          ALL_OUTPUT_FILES="" # Chuỗi để lưu tên tất cả các file output
+
+          # Chuyển đổi chuỗi "lang1, lang2" thành một mảng để lặp
+          IFS=',' read -r -a LANG_ARRAY <<< "${{ inputs.languages }}"
+
+          for lang_raw in "${LANG_ARRAY[@]}"; do
+            # Trim whitespace
+            lang=$(echo "$lang_raw" | xargs)
+            echo "---"
+            echo "🚀 Starting translation to: $lang"
+            
+            # Tạo tên file output an toàn (ví dụ: raw_cn.English.srt)
+            SAFE_LANG=$(echo "$lang" | tr ' ' '_')
+            OUT_PATH="output/${{ env.SRT_BASE_NAME }}.${SAFE_LANG}.srt"
+            
+            # Tạo thư mục output nếu chưa có
+            mkdir -p output
+
+            python scripts/translate_srt.py \
+              --input "${{ env.SRT_PATH }}" \
+              --language "$lang" \
+              --output "$OUT_PATH" \
+              --model "${{ inputs.model }}" \
+              --thinking-budget "${{ inputs.thinking_budget }}"
+            
+            # Thêm file output vào danh sách để upload
+            ALL_OUTPUT_FILES="$ALL_OUTPUT_FILES $OUT_PATH"
+          done
+          
+          # Lưu danh sách file output vào biến môi trường cho bước sau
+          echo "ALL_TRANSLATED_FILES=${ALL_OUTPUT_FILES# }" >> $GITHUB_ENV
+
+      # ────────────────────────────────────────────────
+      # 3. Upload tất cả kết quả lên Google Drive
+      # ────────────────────────────────────────────────
+      - name: ☁️ Upload all results to Drive
+        run: |
+          if [ -z "${{ env.ALL_TRANSLATED_FILES }}" ]; then
+            echo "No files were translated. Skipping upload."
+          else
+            echo "Uploading files: ${{ env.ALL_TRANSLATED_FILES }}"
+            # Script upload_results_to_drive.py cần đọc biến môi trường UPLOAD_FILES
+            export UPLOAD_FILES="${{ env.ALL_TRANSLATED_FILES }}"
+            python scripts/upload_results_to_drive.py
+          fi
+
+      # ────────────────────────────────────────────────
+      # 4. Hiển thị kết quả
+      # ────────────────────────────────────────────────
+      - name: 📜 Show a preview of generated files
+        run: |
+          echo "✅ Translation process completed."
+          echo "Generated files:"
+          ls -lhR output/

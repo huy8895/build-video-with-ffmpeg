@@ -12,6 +12,10 @@ on:
 jobs:
   send-notification:
     runs-on: ubuntu-latest
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      MESSAGE: ${{ inputs.message }}
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
@@ -22,10 +26,6 @@ jobs:
       - name: 📦 Install Node dependencies
         run: npm install node-telegram-bot-api
       - name: 📩 Send Telegram Notification
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          MESSAGE: ${{ inputs.message }}
         run: |
           echo "Sending message..."
           node scripts/send_telegram_message.js

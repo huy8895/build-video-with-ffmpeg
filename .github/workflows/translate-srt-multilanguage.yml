@@ -178,5 +178,5 @@ jobs:
           ls -lhR output/
       - name: "📩 Notify"
         run: |
-          export MESSAGE=${{ needs.translate-and-upload.outputs.summary_message }}
+          export MESSAGE="${{ steps.generate_summary.outputs.summary_message }}"
           node scripts/send_telegram_message.js

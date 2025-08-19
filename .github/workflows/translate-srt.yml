@@ -1,0 +1,100 @@
+name: Translate SRT with Gemini
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: 'Chọn môi trường (ose, mep, dde)'
+        required: true
+        default: 'ose'
+        type: choice
+        options:
+          - ose
+          - mep
+          - dde
+      srt_path:
+        description: 'Đường dẫn tới file .srt trong repo (ví dụ subtitles/episode1.zh.srt)'
+        required: true
+        default: 'subtitles/episode1.zh.srt'
+      language:
+        description: 'Ngôn ngữ đích (ví dụ English)'
+        required: true
+        default: 'English'
+      model:
+        description: 'Gemini model (ví dụ gemini-2.5-pro)'
+        required: false
+        default: 'gemini-2.5-pro'
+      thinking_budget:
+        description: 'Thinking budget (-1 dynamic, 0 off, or positive int)'
+        required: false
+        default: '-1'
+      upload_artifact:
+        description: 'Upload kết quả như artifact? (true/false)'
+        required: false
+        default: 'true'
+
+jobs:
+  translate:
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.env }}
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install google-genai
+
+      - name: 🔎 Show inputs
+        run: |
+          echo "SRT_PATH=${{ inputs.srt_path }}"
+          echo "LANGUAGE='${{ inputs.language }}'"
+          echo "MODEL='${{ inputs.model }}'"
+          echo "THINKING_BUDGET='${{ inputs.thinking_budget }}'"
+
+      - name: 🛠 Prepare output path & run translation
+        id: run_translate
+        run: |
+          set -euo pipefail
+          INPUT="${{ inputs.srt_path }}"
+          LANG="${{ inputs.language }}"
+          MODEL="${{ inputs.model }}"
+          TB="${{ inputs.thinking_budget }}"
+          # build output path similar to script logic: <base>.<Language>.srt
+          BASE="${INPUT%.*}"
+          SAFE_LANG="$(echo "$LANG" | tr ' ' '_' )"
+          OUT_PATH="${BASE}.${SAFE_LANG}.srt"
+          echo "OUT_PATH=$OUT_PATH" >> $GITHUB_ENV
+          echo "Running translate script..."
+          python scripts/translate_srt.py --input "$INPUT" --language "$LANG" --output "$OUT_PATH" --model "$MODEL" --thinking-budget "$TB"
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+      - name: 📁 Upload translated SRT as artifact (optional)
+        if: ${{ inputs.upload_artifact == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: translated-srt
+          path: ${{ env.OUT_PATH }}
+
+      - name: 📜 Show a preview of the generated file
+        run: |
+          if [ -f "${{ env.OUT_PATH }}" ]; then
+            echo "Translated file path: ${{ env.OUT_PATH }}"
+            ls -lh "${{ env.OUT_PATH }}" || true
+            echo "===== First 200 lines of the file ====="
+            sed -n '1,200p' "${{ env.OUT_PATH }}" || true
+          else
+            echo "No output file found at ${{ env.OUT_PATH }}. Check logs and raw output."
+            exit 1
+          fi

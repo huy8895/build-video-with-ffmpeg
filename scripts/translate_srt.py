@@ -23,7 +23,7 @@ import re
 import argparse
 from google import genai
 from google.genai import types
-from google.generativeai.types import HarmCategory, HarmBlockThreshold
+
 # Regex for extracting triple-backtick code fence content
 CODE_FENCE_RE = re.compile(r"```(?:\w*\n)?(.*?)```", re.DOTALL)
 # Timecode regex HH:MM:SS,mmm --> HH:MM:SS,mmm
@@ -111,53 +111,34 @@ You will be provided with an SRT transcript in Chinese. You must translate the t
 
 
 def translate_srt_with_gemini(api_key, model, input_srt_text, target_language, thinking_budget=-1):
-    """
-    Translates SRT text using the Gemini API with the recommended GenerativeModel class.
-    Includes safety settings to prevent empty responses for certain languages.
-    """
-    # 1. Cấu hình API key một lần
-    genai.configure(api_key=api_key)
-
-    # 2. Cấu hình an toàn để vô hiệu hóa các bộ lọc có thể gây ra phản hồi rỗng
-    safety_settings = {
-        HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-        HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-        HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-    }
-
-    # 3. Tạo một đối tượng model
-    gemini_model = genai.GenerativeModel(
-        model_name=model,
-        safety_settings=safety_settings
-    )
+    client = genai.Client(api_key=api_key)
 
     prompt = build_prompt(input_srt_text, target_language)
 
-    # Cấu hình cho việc generate content (nếu cần)
-    # thinking_budget không còn được hỗ trợ trực tiếp trong generation_config
-    # Thay vào đó, nó có thể được xử lý thông qua các thiết lập khác nếu API hỗ trợ.
-    # Hiện tại, chúng ta có thể bỏ qua nó nếu không có yêu cầu đặc biệt.
-    generation_config = types.GenerationConfig(
-        # bạn có thể thêm các tham số như temperature, top_p ở đây
-        # ví dụ: temperature=0.7
+    contents = [
+        types.Content(
+            role="user",
+            parts=[types.Part.from_text(text=prompt)]
+        )
+    ]
+
+    generate_content_config = types.GenerateContentConfig(
+        thinking_config=types.ThinkingConfig(
+            thinking_budget=thinking_budget,
+        ),
     )
 
     output_chunks = []
     try:
-        # 4. Gọi generate_content với stream=True. Đơn giản và dễ đọc hơn nhiều.
-        response_stream = gemini_model.generate_content(
-            prompt,
-            stream=True,
-            generation_config=generation_config
-        )
-
-        for chunk in response_stream:
+        for chunk in client.models.generate_content_stream(
+            model=model,
+            contents=contents,
+            config=generate_content_config,
+        ):
             if getattr(chunk, 'text', None):
-                # In ra để theo dõi tiến trình
+                # Print to stdout so GH Actions logs receive partial output
                 print(chunk.text, end='', flush=True)
                 output_chunks.append(chunk.text)
-
     except Exception as e:
         raise RuntimeError(f"Error when calling Gemini API: {e}")
 

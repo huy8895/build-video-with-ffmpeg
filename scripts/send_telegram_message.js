@@ -4,8 +4,18 @@ const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const MESSAGE = process.env.MESSAGE;
 
-if (!TOKEN || !CHAT_ID || !MESSAGE) {
-    console.error('❌ Missing token, chat ID, or message.');
+if (!TOKEN ) {
+    console.error('❌ Missing TELEGRAM_BOT_TOKEN.');
+    process.exit(1);
+}
+
+if (!CHAT_ID) {
+    console.error('❌ Missing TELEGRAM_CHAT_ID.');
+    process.exit(1);
+}
+
+if (!MESSAGE) {
+    console.error('❌ Missing MESSAGE.');
     process.exit(1);
 }
 

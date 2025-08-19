@@ -142,7 +142,11 @@ def main():
 
     input_text = read_srt(args.input)
 
-    print(f"Translating {args.g.input} -> language: {args.language} using model {args.model} ...")
+    # =======================================================
+    # LỖI Ở DÒNG NÀY ĐÃ ĐƯỢC SỬA (xóa .g)
+    # =======================================================
+    print(f"Translating {args.input} -> language: {args.language} using model {args.model} ...")
+
     raw_response, translated_srt = translate_srt_with_gemini(
         api_key=api_key,
         model=args.model,

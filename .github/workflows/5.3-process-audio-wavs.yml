@@ -1,0 +1,283 @@
+name: 🧭 5.3 Process Audio And SRT wavs
+
+on:
+  workflow_call:
+    inputs:
+      env:
+        required: true
+        type: string
+      folder_url:
+        required: true
+        type: string
+      video_number:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      env:
+        description: 'Chọn môi trường (ose, mep, dde, cdp, jppodcast)'
+        required: true
+        default: 'ose'
+        type: choice
+        options:
+          - ose
+          - mep
+          - dde
+          - cdp
+          - jppodcast
+      folder_url:
+        description: 'Link folder Google Drive chứa audio.zip hoặc các file .wav'
+        required: true
+      video_number:
+        description: 'Số Thứ tự video (1, 2, 3, ...)'
+        required: true
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.env }}
+    name: "Audio Channel: ${{ inputs.env }} | Video: #${{ inputs.video_number }}"
+
+    env:
+      CHANNEL: ${{ inputs.env }}
+      FOLDER_URL: ${{ inputs.folder_url }}
+      VIDEO_NUMBER: ${{ inputs.video_number }}
+      CONFIG_JSON: ${{ vars.CONFIG_JSON }}
+      YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+      YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+      GG_REFRESH_TOKEN: ${{ secrets.GG_REFRESH_TOKEN }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+    steps:
+      - name: 📥 Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies send mail
+        run: npm install nodemailer
+
+      - name: 🧪 Parse CONFIG_JSON into environment variables
+        id: parse
+        run: |
+          echo "$CONFIG_JSON" > config.json
+          echo "WHISPER_MODEL=$(jq -r '.whisper_model' config.json)" >> $GITHUB_ENV
+          echo "SPEED=$(jq -r '.speed' config.json)" >> $GITHUB_ENV
+          echo "MAX_WORDS_PER_LINE=$(jq -r '.max_words_per_line' config.json)" >> $GITHUB_ENV
+          echo "LANGUAGE=$(jq -r '.language' config.json)" >> $GITHUB_ENV
+          echo "VOLUME=$(jq -r '.volume' config.json)" >> $GITHUB_ENV
+          echo "EMAIL=$(jq -r '.email' config.json)" >> $GITHUB_ENV
+
+      - name: 🏁 Tạo link đến workflow run
+        run: |
+          echo "RUN_URL=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_ENV
+
+      - name: "📩 Notify: Start processing AUDIO"
+        run: |
+          export MESSAGE="🏁 Start Process Audio 🎧| 📺 Channel: [$CHANNEL] | Video: #$VIDEO_NUMBER 🧠 WhisperModel: $WHISPER_MODEL | 🎚️ Speed: $SPEED | 🗣️ Lang: $LANGUAGE 📁 Folder: $FOLDER_URL 🔗 View run: $RUN_URL"
+          node scripts/send_telegram_message.js
+          node scripts/sendMail.js
+        env:
+          CONFIG_EMAIL: ${{ vars.CONFIG_EMAIL }}
+
+      - name: 🐍 Install Python & Google API packages
+        run: pip install google-auth google-api-python-client
+
+      # --- START: Thay đổi ---
+      - name: ⬇️ Download all files from Drive folder
+        run: python scripts/download_drive_folder_files_all.py
+      # --- END: Thay đổi ---
+
+      # --- START: Thay đổi (Logic kiểm tra file linh hoạt hơn) ---
+      - name: 🧪 Xác định nguồn audio (zip, mp3 hay wav)
+        id: check_source
+        run: |
+          if [ -f input/audio.zip ]; then
+            echo "✅ Tìm thấy audio.zip. Sẽ xử lý theo luồng MP3 (nối file)."
+            echo "AUDIO_SOURCE=mp3_zip" >> $GITHUB_ENV
+          elif ls input/*.mp3 1> /dev/null 2>&1; then
+            echo "✅ Tìm thấy file .mp3 độc lập. Sẽ xử lý theo luồng MP3 hàng loạt."
+            echo "AUDIO_SOURCE=mp3_batch" >> $GITHUB_ENV
+          elif ls input/*.wav 1> /dev/null 2>&1; then
+            echo "✅ Tìm thấy file .wav. Sẽ xử lý theo luồng WAV."
+            echo "AUDIO_SOURCE=wav" >> $GITHUB_ENV
+          else
+            echo "❌ Không tìm thấy file 'audio.zip', '.mp3' hoặc '.wav' nào trong thư mục 'input/'."
+            exit 1
+          fi
+      # --- END: Thay đổi ---
+
+      - name: 🛠️ Cài đặt FFMPEG & Whisper
+        run: |
+          sudo apt update
+          sudo apt install -y ffmpeg
+          pip install --upgrade pip setuptools-rust openai-whisper
+
+      # =================================================================
+      # == LUỒNG XỬ LÝ MP3 (TỪ FILE ZIP)
+      # =================================================================
+      - name: 📂 Giải nén file audio.zip
+        if: env.AUDIO_SOURCE == 'mp3_zip'
+        run: |
+          rm -rf audio merged
+          mkdir -p audio merged
+          unzip -o input/audio.zip -d audio
+          find audio -maxdepth 1 -type f -name "*.mp3" | sort -V > merged/sorted.txt
+          cat merged/sorted.txt
+
+      - name: 🔗 Nối tất cả file .mp3
+        if: env.AUDIO_SOURCE == 'mp3_zip'
+        run: |
+          mkdir -p merged
+          while read f; do
+            echo "file '$PWD/$f'" >> merged/list.txt
+          done < merged/sorted.txt
+          ffmpeg -f concat -safe 0 -i merged/list.txt -c copy merged/merged.mp3
+
+      - name: 🐢 Điều chỉnh tốc độ & âm lượng audio
+        if: env.AUDIO_SOURCE == 'mp3_zip'
+        run: |
+          mkdir -p adjusted
+          BITRATE=$(ffprobe -v error -select_streams a:0 -show_entries stream=bit_rate -of csv=p=0 merged/merged.mp3)
+          if [ -z "$BITRATE" ] || [ "$BITRATE" = "N/A" ]; then
+            echo "⚠️ Không đọc được bitrate – dùng VBR chất lượng cao (q=0)."
+            ffmpeg -i merged/merged.mp3 -filter:a "atempo=$SPEED,volume=$VOLUME" -c:a libmp3lame -q:a 0 adjusted/audio_adjusted.mp3
+          else
+            echo "➡️ Mã hoá lại ở $BITRATE bps (giữ nguyên như gốc)."
+            ffmpeg -i merged/merged.mp3 -filter:a "atempo=$SPEED,volume=$VOLUME" -c:a libmp3lame -b:a ${BITRATE} adjusted/audio_adjusted.mp3
+          fi
+
+      - name: ✍️ Tạo phụ đề SRT (từ file MP3 đã xử lý)
+        if: env.AUDIO_SOURCE == 'mp3_zip'
+        run: |
+          whisper adjusted/audio_adjusted.mp3 \
+            --model "$WHISPER_MODEL" \
+            --output_format srt \
+            --word_timestamps True \
+            --max_words_per_line "$MAX_WORDS_PER_LINE" \
+            --output_dir output --task transcribe        
+          mv output/audio_adjusted.srt transcript.srt
+          cp adjusted/audio_adjusted.mp3 audio_adjusted.mp3
+      # =================================================================
+      # == KẾT THÚC LUỒNG XỬ LÝ MP3
+      # =================================================================
+
+
+      # --- START: CẬP NHẬT (Xử lý hiệu quả nhiều file WAV) ---
+      # =================================================================
+      # == LUỒNG XỬ LÝ WAV (XỬ LÝ HÀNG LOẠT)
+      # =================================================================
+      - name: ✍️ Tạo phụ đề SRT (từ các file WAV, xử lý hàng loạt)
+        if: env.AUDIO_SOURCE == 'wav'
+        run: |
+          set -e
+          mkdir -p output
+          NUM_FILES=$(ls -1 input/*.wav 2>/dev/null | wc -l)
+          if [ "$NUM_FILES" -eq 0 ]; then
+            echo "⚠️ Không tìm thấy file .wav nào để xử lý."
+            exit 0
+          fi
+
+          echo "🚀 Bắt đầu phiên dịch hàng loạt cho $NUM_FILES file .wav..."
+          echo "Model [$WHISPER_MODEL] sẽ chỉ được tải MỘT LẦN."
+
+          # Bước 1: Chạy whisper cho tất cả các file .wav cùng lúc.
+          # Tool sẽ tự động xử lý tuần tự, nhưng chỉ load model một lần.
+          # `input/*.wav` sẽ được shell expand thành danh sách các file.
+          whisper input/*.wav \
+            --model "$WHISPER_MODEL" \
+            --language "$LANGUAGE" \
+            --output_format srt \
+            --word_timestamps True \
+            --max_words_per_line "$MAX_WORDS_PER_LINE" \
+            --output_dir "output" \
+            --task transcribe
+
+          echo "✅ Phiên dịch hoàn tất. Bắt đầu đổi tên file output..."
+
+          # Bước 2: Đổi tên các file .srt đã tạo để có tiền tố "transcript-"
+          # Whisper sẽ tạo ra file output có cùng tên với file input (ví dụ: audio1.srt)
+          for srt_file in output/*.srt; do
+            BASENAME=$(basename "$srt_file") # Lấy ra "audio1.srt"
+            mv "$srt_file" "transcript-$BASENAME"
+            echo "   - Đã đổi tên thành: transcript-$BASENAME"
+          done
+
+          echo "✅ Tất cả các file đã được đổi tên."
+      # =================================================================
+      # == KẾT THÚC LUỒNG XỬ LÝ WAV
+      # =================================================================
+      - name: ✍️ Tạo phụ đề SRT (từ các file MP3, xử lý hàng loạt)
+        if: env.AUDIO_SOURCE == 'mp3_batch'
+        run: |
+          set -e
+          mkdir -p output
+          NUM_FILES=$(ls -1 input/*.mp3 2>/dev/null | wc -l)
+          if [ "$NUM_FILES" -eq 0 ]; then
+            echo "⚠️ Không tìm thấy file .mp3 nào để xử lý."
+            exit 0
+          fi
+
+          echo "🚀 Bắt đầu phiên dịch hàng loạt cho $NUM_FILES file .mp3..."
+          echo "Model [$WHISPER_MODEL] sẽ chỉ được tải MỘT LẦN."
+
+          whisper input/*.mp3 \
+            --model "$WHISPER_MODEL" \
+            --language "$LANGUAGE" \
+            --output_format srt \
+            --word_timestamps True \
+            --max_words_per_line "$MAX_WORDS_PER_LINE" \
+            --output_dir "output" \
+            --task transcribe
+
+          echo "✅ Phiên dịch hoàn tất. Bắt đầu đổi tên file output..."
+
+          for srt_file in output/*.srt; do
+            BASENAME=$(basename "$srt_file" .srt)
+            mv "output/$BASENAME.srt" "transcript-$BASENAME.srt"
+            echo "   - Đã đổi tên thành: transcript-$BASENAME.srt"
+          done
+
+          echo "✅ Tất cả các file đã được đổi tên."
+      # --- START: Thay đổi (Chuẩn bị file upload linh hoạt) ---
+      - name: ☁️ Chuẩn bị danh sách file để upload
+        id: prepare_upload
+        run: |
+          if [ "${{ env.AUDIO_SOURCE }}" == "mp3_zip" ]; then
+            echo "UPLOAD_FILES=audio_adjusted.mp3 transcript.srt" >> $GITHUB_ENV
+          elif [ "${{ env.AUDIO_SOURCE }}" == "mp3_batch" ] || [ "${{ env.AUDIO_SOURCE }}" == "wav" ]; then
+            # Chỉ lấy các file transcript-*.srt
+            FILE_LIST=$(ls transcript-*.srt 2>/dev/null | tr '\n' ' ')
+            if [ -z "$FILE_LIST" ]; then
+              echo "❌ Không tìm thấy file .srt nào để upload."
+              exit 1
+            fi
+            echo "File sẽ được upload: $FILE_LIST"
+            echo "UPLOAD_FILES=$FILE_LIST" >> $GITHUB_ENV
+          else
+            echo "❌ Không nhận dạng được loại file audio."
+            exit 1
+          fi
+
+      - name: ☁️ Upload kết quả lên Google Drive
+        run: |
+          export UPLOAD_FILES="${{ env.UPLOAD_FILES }}"
+          python scripts/upload_results_to_drive.py
+      # --- END: Thay đổi ---
+
+      - name: 🚀 Gửi tin nhắn Telegram
+        run: |
+          export MESSAGE="🌘 Done Process Audio! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | WhisperModel: $WHISPER_MODEL | Speed: $SPEED | Lang: $LANGUAGE | ✅ Done! 📁 $FOLDER_URL"
+          node scripts/send_telegram_message.js
+          node scripts/sendMail.js
+        env:
+          CONFIG_EMAIL: ${{ vars.CONFIG_EMAIL }}
+
+      - name: 📛 Notify Telegram if job failed
+        if: failure()
+        run: |
+          export MESSAGE="❌ ${{ github.workflow }} thất bại! Channel [$CHANNEL] Video: #$VIDEO_NUMBER | 📁 $FOLDER_URL"
+          node scripts/send_telegram_message.js
+          node scripts/sendMail.js
+        env:
+          CONFIG_EMAIL: ${{ vars.CONFIG_EMAIL }}

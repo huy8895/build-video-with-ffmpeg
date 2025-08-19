@@ -1,4 +1,4 @@
-name: 🌐 Translate SRT from Google Drive
+name: 🌐 Translate SRT from Google Drive (Final Version)
 
 on:
   workflow_dispatch:
@@ -35,6 +35,9 @@ on:
 jobs:
   translate-and-upload:
     runs-on: ubuntu-latest
+    # Khai báo output của job này, sẽ được job 'notify' sử dụng
+    outputs:
+      summary_message: ${{ steps.generate_summary.outputs.summary_message }}
     environment:
       name: ${{ inputs.env }}
     env:
@@ -75,24 +78,19 @@ jobs:
           echo "Downloaded file:"
           ls -lh "input/$SOURCE_FILE"
 
-      # ────────────────────────────────────────────────
-      # 2. Lặp qua các ngôn ngữ và dịch (ĐÃ CẬP NHẬT LOGIC LỖI)
-      # ────────────────────────────────────────────────
-      - name: 🔄 Translate for each language (with error skipping)
+      - name: 🔄 Translate for each language
         id: run_translations
-        continue-on-error: true
+        continue-on-error: true # Cho phép job tiếp tục ngay cả khi step này thất bại
         run: |
-          # KHÔNG dùng 'set -e' ở đây để có thể xử lý lỗi trong vòng lặp
           set -uo pipefail
-
           SUCCESSFUL_FILES=""
-          FAILED_LANGS=() # Mảng để lưu các ngôn ngữ bị lỗi
+          SUCCESSFUL_LANGS=()
+          FAILED_LANGS=()
 
-          # Chuyển đổi chuỗi "lang1, lang2" thành một mảng để lặp
           IFS=',' read -r -a LANG_ARRAY <<< "${{ inputs.languages }}"
 
           for lang_raw in "${LANG_ARRAY[@]}"; do
-            lang=$(echo "$lang_raw" | xargs) # Trim whitespace
+            lang=$(echo "$lang_raw" | xargs)
             echo "---"
             echo "🚀 Starting translation to: '$lang'"
             
@@ -100,8 +98,6 @@ jobs:
             OUT_PATH="output/${{ env.SRT_BASE_NAME }}.${SAFE_LANG}.srt"
             mkdir -p output
 
-            # Chạy lệnh dịch và kiểm tra mã thoát của nó
-            # Nếu lệnh không thành công (!), nó sẽ vào khối 'if'
             if ! python scripts/translate_srt.py \
               --input "${{ env.SRT_PATH }}" \
               --language "$lang" \
@@ -109,29 +105,60 @@ jobs:
               --model "${{ inputs.model }}" \
               --thinking-budget "${{ inputs.thinking_budget }}"; then
               
-              # Ghi lại lỗi và tiếp tục vòng lặp
               echo "::warning::Translation to '$lang' failed. Skipping this language."
               FAILED_LANGS+=("$lang")
             else
-              # Nếu thành công, thêm file vào danh sách để upload
               echo "✅ Translation to '$lang' succeeded. Output: $OUT_PATH"
+              SUCCESSFUL_LANGS+=("$lang")
               SUCCESSFUL_FILES="$SUCCESSFUL_FILES $OUT_PATH"
             fi
           done
 
-          # Lưu danh sách các file thành công vào biến môi trường
           echo "ALL_TRANSLATED_FILES=${SUCCESSFUL_FILES# }" >> $GITHUB_ENV
+          
+          # Xuất kết quả thô ra output của step để step sau sử dụng
+          echo "successful_langs=${SUCCESSFUL_LANGS[*]}" >> $GITHUB_OUTPUT
+          echo "failed_langs=${FAILED_LANGS[*]}" >> $GITHUB_OUTPUT
+          echo "total_langs=${#LANG_ARRAY[@]}" >> $GITHUB_OUTPUT
 
-          # KIỂM TRA CUỐI CÙNG: Nếu có bất kỳ lỗi nào, làm cho job thất bại
-          echo "---"
-          echo "📊 Translation Summary:"
+          # Thoát với mã lỗi nếu có thất bại để đánh dấu step này là 'failed'
           if [ ${#FAILED_LANGS[@]} -ne 0 ]; then
-            # Dùng ::error:: để GitHub Actions nhận diện đây là lỗi
-            echo "::error::Job finished with errors. The following languages failed: ${FAILED_LANGS[*]}"
             exit 1
-          else
-            echo "✅ All languages translated successfully!"
           fi
+
+      - name: 📝 Generate summary message
+        id: generate_summary
+        if: always() # Luôn chạy step này, bất kể step trước thành công hay thất bại
+        run: |
+          # Nhận output từ step trước
+          SUCCESSFUL_LANGS="${{ steps.run_translations.outputs.successful_langs }}"
+          FAILED_LANGS="${{ steps.run_translations.outputs.failed_langs }}"
+          TOTAL_LANGS="${{ steps.run_translations.outputs.total_langs }}"
+          
+          # Chuyển chuỗi thành mảng để đếm số phần tử
+          read -r -a successful_array <<< "$SUCCESSFUL_LANGS"
+          read -r -a failed_array <<< "$FAILED_LANGS"
+          success_count=${#successful_array[@]}
+          failed_count=${#failed_array[@]}
+          
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          SUMMARY_MESSAGE=""
+
+          # Tạo thông báo động
+          if [ $failed_count -eq 0 ]; then
+            SUMMARY_MESSAGE="✅ **Dịch Thuật Hoàn Tất** ✅\n\nTất cả $success_count ngôn ngữ đã được dịch thành công!"
+          elif [ $success_count -eq 0 ]; then
+            SUMMARY_MESSAGE="❌ **Dịch Thuật Thất Bại** ❌\n\nToàn bộ $failed_count ngôn ngữ đều dịch thất bại. Vui lòng kiểm tra log."
+          else
+            SUMMARY_MESSAGE="⚠️ **Dịch Thuật Hoàn Tất (Có Lỗi)** ⚠️\n\n- *Thành công ($success_count/$TOTAL_LANGS)*: $SUCCESSFUL_LANGS.\n- *Thất bại ($failed_count/$TOTAL_LANGS)*: $FAILED_LANGS."
+          fi
+          
+          SUMMARY_MESSAGE+="\n\n*Xem chi tiết tại*: [Link]($RUN_URL)"
+          
+          # Xuất thông báo hoàn chỉnh ra output của step này
+          echo "summary_message<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$SUMMARY_MESSAGE" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: ☁️ Upload all results to Drive
         run: |
@@ -148,3 +175,11 @@ jobs:
           echo "✅ Translation process completed."
           echo "Generated files:"
           ls -lhR output/
+
+  notify:
+    needs: translate-and-upload # Phụ thuộc vào job trên
+    if: always() # Luôn chạy để gửi thông báo
+    uses: ./.github/workflows/notify-telegram.yml@main # Gọi reusable workflow
+    with:
+      # Truyền message đã được tạo ở job trước vào
+      message: ${{ needs.translate-and-upload.outputs.summary_message }}

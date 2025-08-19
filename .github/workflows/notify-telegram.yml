@@ -1,0 +1,31 @@
+# File: .github/workflows/notify-telegram.yml
+name: Reusable Telegram Notifier (Generic)
+
+on:
+  workflow_call:
+    inputs:
+      message:
+        description: 'Nội dung tin nhắn đầy đủ để gửi đi'
+        required: true
+        type: string
+
+jobs:
+  send-notification:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: 📦 Install Node dependencies
+        run: npm install node-telegram-bot-api
+      - name: 📩 Send Telegram Notification
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          MESSAGE: ${{ inputs.message }}
+        run: |
+          echo "Sending message..."
+          node scripts/send_telegram_message.js

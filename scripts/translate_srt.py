@@ -82,11 +82,14 @@ You will be provided with an SRT transcript in Chinese. You must translate the t
 
 
 def translate_srt_with_gemini(api_key, model, input_srt_text, target_language, thinking_budget=-1):
-    # Cấu hình API key cho thư viện
-    genai.configure(api_key=api_key)
+    # =======================================================
+    # SỬA LỖI Ở ĐÂY: Quay lại cách khởi tạo Client ban đầu
+    # =======================================================
+    # 1. Tạo một đối tượng Client
+    client = genai.Client(api_key=api_key)
 
-    # Tạo một đối tượng GenerativeModel - đây là cách làm đúng
-    model_instance = genai.GenerativeModel(model)
+    # 2. Lấy model instance từ client. Lưu ý: tên model cần có tiền tố "models/"
+    model_instance = client.get_model(f'models/{model}')
 
     prompt = build_prompt(input_srt_text, target_language)
 
@@ -110,14 +113,13 @@ def translate_srt_with_gemini(api_key, model, input_srt_text, target_language, t
 
     full_text = ""
     try:
-        # Gọi generate_content trực tiếp trên đối tượng model
+        # 3. Gọi generate_content trên model_instance đã lấy được
         response = model_instance.generate_content(
             contents=contents,
             generation_config=generation_config,
             safety_settings=safety_settings,
         )
         full_text = response.text
-        # In kết quả ra log để dễ debug
         print(full_text)
 
     except Exception as e:
@@ -142,9 +144,6 @@ def main():
 
     input_text = read_srt(args.input)
 
-    # =======================================================
-    # LỖI Ở DÒNG NÀY ĐÃ ĐƯỢC SỬA (xóa .g)
-    # =======================================================
     print(f"Translating {args.input} -> language: {args.language} using model {args.model} ...")
 
     raw_response, translated_srt = translate_srt_with_gemini(

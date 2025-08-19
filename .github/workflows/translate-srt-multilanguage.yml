@@ -20,9 +20,9 @@ on:
         required: true
         default: "raw_cn.srt"
       languages:
-        description: "Danh sách ngôn ngữ đích, cách nhau bằng dấu phẩy (ví dụ: English, Vietnamese)"
+        description: "Danh sách ngôn ngữ đích, cách nhau bằng dấu phẩy (ví dụ: English, Vietnamese, Japanese)"
         required: true
-        default: "English, Vietnamese"
+        default: "English, Vietnamese, Japanese"
       model:
         description: 'Gemini model (ví dụ gemini-2.5-pro)'
         required: false
@@ -38,12 +38,10 @@ jobs:
     environment:
       name: ${{ inputs.env }}
     env:
-      # Secrets để tương tác với Google Drive API
       FOLDER_URL:       ${{ inputs.folder_url }}
       GG_REFRESH_TOKEN: ${{ secrets.GG_REFRESH_TOKEN }}
       YT_CLIENT_ID:     ${{ secrets.YT_CLIENT_ID }}
       YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
-      # Secret cho Gemini API
       GEMINI_API_KEY:   ${{ secrets.GEMINI_API_KEY }}
 
     steps:
@@ -60,9 +58,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install google-genai google-auth google-api-python-client
 
-      # ────────────────────────────────────────────────
-      # 1. Tải file SRT gốc từ Google Drive
-      # ────────────────────────────────────────────────
       - name: 📂 Download source SRT from Drive
         id: download_srt
         run: |
@@ -70,7 +65,6 @@ jobs:
           SOURCE_FILE="${{ inputs.source_srt_filename }}"
           python scripts/download_drive_folder_files.py "$SOURCE_FILE"
           
-          # Kiểm tra file đã tải về thành công chưa
           if [ ! -f "input/$SOURCE_FILE" ]; then
             echo "::error::Failed to download $SOURCE_FILE from Google Drive."
             exit 1
@@ -82,61 +76,72 @@ jobs:
           ls -lh "input/$SOURCE_FILE"
 
       # ────────────────────────────────────────────────
-      # 2. Lặp qua các ngôn ngữ và dịch
+      # 2. Lặp qua các ngôn ngữ và dịch (ĐÃ CẬP NHẬT LOGIC LỖI)
       # ────────────────────────────────────────────────
-      - name: 🔄 Translate for each language
+      - name: 🔄 Translate for each language (with error skipping)
         id: run_translations
         run: |
-          set -euo pipefail
-          ALL_OUTPUT_FILES="" # Chuỗi để lưu tên tất cả các file output
+          # KHÔNG dùng 'set -e' ở đây để có thể xử lý lỗi trong vòng lặp
+          set -uo pipefail
+
+          SUCCESSFUL_FILES=""
+          FAILED_LANGS=() # Mảng để lưu các ngôn ngữ bị lỗi
 
           # Chuyển đổi chuỗi "lang1, lang2" thành một mảng để lặp
           IFS=',' read -r -a LANG_ARRAY <<< "${{ inputs.languages }}"
 
           for lang_raw in "${LANG_ARRAY[@]}"; do
-            # Trim whitespace
-            lang=$(echo "$lang_raw" | xargs)
+            lang=$(echo "$lang_raw" | xargs) # Trim whitespace
             echo "---"
-            echo "🚀 Starting translation to: $lang"
+            echo "🚀 Starting translation to: '$lang'"
             
-            # Tạo tên file output an toàn (ví dụ: raw_cn.English.srt)
             SAFE_LANG=$(echo "$lang" | tr ' ' '_')
             OUT_PATH="output/${{ env.SRT_BASE_NAME }}.${SAFE_LANG}.srt"
-            
-            # Tạo thư mục output nếu chưa có
             mkdir -p output
 
-            python scripts/translate_srt.py \
+            # Chạy lệnh dịch và kiểm tra mã thoát của nó
+            # Nếu lệnh không thành công (!), nó sẽ vào khối 'if'
+            if ! python scripts/translate_srt.py \
               --input "${{ env.SRT_PATH }}" \
               --language "$lang" \
               --output "$OUT_PATH" \
               --model "${{ inputs.model }}" \
-              --thinking-budget "${{ inputs.thinking_budget }}"
-            
-            # Thêm file output vào danh sách để upload
-            ALL_OUTPUT_FILES="$ALL_OUTPUT_FILES $OUT_PATH"
+              --thinking-budget "${{ inputs.thinking_budget }}"; then
+              
+              # Ghi lại lỗi và tiếp tục vòng lặp
+              echo "::warning::Translation to '$lang' failed. Skipping this language."
+              FAILED_LANGS+=("$lang")
+            else
+              # Nếu thành công, thêm file vào danh sách để upload
+              echo "✅ Translation to '$lang' succeeded. Output: $OUT_PATH"
+              SUCCESSFUL_FILES="$SUCCESSFUL_FILES $OUT_PATH"
+            fi
           done
-          
-          # Lưu danh sách file output vào biến môi trường cho bước sau
-          echo "ALL_TRANSLATED_FILES=${ALL_OUTPUT_FILES# }" >> $GITHUB_ENV
 
-      # ────────────────────────────────────────────────
-      # 3. Upload tất cả kết quả lên Google Drive
-      # ────────────────────────────────────────────────
+          # Lưu danh sách các file thành công vào biến môi trường
+          echo "ALL_TRANSLATED_FILES=${SUCCESSFUL_FILES# }" >> $GITHUB_ENV
+
+          # KIỂM TRA CUỐI CÙNG: Nếu có bất kỳ lỗi nào, làm cho job thất bại
+          echo "---"
+          echo "📊 Translation Summary:"
+          if [ ${#FAILED_LANGS[@]} -ne 0 ]; then
+            # Dùng ::error:: để GitHub Actions nhận diện đây là lỗi
+            echo "::error::Job finished with errors. The following languages failed: ${FAILED_LANGS[*]}"
+            exit 1
+          else
+            echo "✅ All languages translated successfully!"
+          fi
+
       - name: ☁️ Upload all results to Drive
         run: |
           if [ -z "${{ env.ALL_TRANSLATED_FILES }}" ]; then
-            echo "No files were translated. Skipping upload."
+            echo "No files were successfully translated. Skipping upload."
           else
-            echo "Uploading files: ${{ env.ALL_TRANSLATED_FILES }}"
-            # Script upload_results_to_drive.py cần đọc biến môi trường UPLOAD_FILES
+            echo "Uploading successfully translated files: ${{ env.ALL_TRANSLATED_FILES }}"
             export UPLOAD_FILES="${{ env.ALL_TRANSLATED_FILES }}"
             python scripts/upload_results_to_drive.py
           fi
 
-      # ────────────────────────────────────────────────
-      # 4. Hiển thị kết quả
-      # ────────────────────────────────────────────────
       - name: 📜 Show a preview of generated files
         run: |
           echo "✅ Translation process completed."

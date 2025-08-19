@@ -59,7 +59,7 @@ You will be provided with an SRT transcript in Chinese. You must translate the t
 """
     return prompt
 
-# --- HÀM NÀY ĐÃ ĐƯỢC THAY ĐỔI ---
+# --- SỬA LỖI VÀ TĂNG TÍNH AN TOÀN CHO HÀM NÀY ---
 def translate_srt_with_gemini(api_key, model, input_srt_text, target_language, thinking_budget=-1):
     client = genai.Client(api_key=api_key)
 
@@ -79,19 +79,29 @@ def translate_srt_with_gemini(api_key, model, input_srt_text, target_language, t
     )
 
     try:
-        # Sử dụng generate_content để nhận toàn bộ phản hồi một lần
         response = client.models.generate_content(
             model=model,
             contents=contents,
             config=generate_content_config,
         )
 
-        # Lấy toàn bộ văn bản từ phản hồi
-        full_text = response.text
+        # --- THAY ĐỔI QUAN TRỌNG BẮT ĐẦU TỪ ĐÂY ---
+
+        # 1. Kiểm tra xem phản hồi có bị chặn hay không
+        if response.prompt_feedback and response.prompt_feedback.block_reason:
+            raise RuntimeError(f"API call failed: Content was blocked due to {response.prompt_feedback.block_reason.name}")
+
+        # 2. Lấy văn bản một cách an toàn
+        # Dùng try-except để bắt trường hợp response không có thuộc tính 'text'
+        try:
+            full_text = response.text
+        except ValueError:
+            # Lỗi này xảy ra khi response.candidates trống (ví dụ do bị lọc an toàn)
+            # Chúng ta sẽ coi đây là lỗi và cung cấp thông tin gỡ lỗi
+            raise RuntimeError(f"API call succeeded but returned no content. Feedback: {response.prompt_feedback}")
 
     except Exception as e:
-        if 'response' in locals() and response.prompt_feedback:
-            raise RuntimeError(f"API call failed with prompt feedback: {response.prompt_feedback}")
+        # Bắt tất cả các lỗi khác (bao gồm cả ServerError 500)
         raise RuntimeError(f"Error when calling Gemini API: {e}")
 
     # Xử lý văn bản như cũ

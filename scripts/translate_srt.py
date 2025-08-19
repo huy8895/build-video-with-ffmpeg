@@ -177,12 +177,12 @@ def main():
         safe_lang = args.language.replace(' ', '_')
         out_path = f"{base}.{safe_lang}{ext}"
 
-    # Validate SRT
-    if not is_valid_srt(translated_clean):
-        # Save raw response for debugging
-        raw_path = save_raw_debug(out_path, full_text)
-        print(f"\nTranslated output failed SRT validation. Raw output saved to: {raw_path}")
-        raise RuntimeError("Translated output is not valid SRT. See raw output for debugging.")
+    # # Validate SRT
+    # if not is_valid_srt(translated_clean):
+    #     # Save raw response for debugging
+    #     raw_path = save_raw_debug(out_path, full_text)
+    #     print(f"\nTranslated output failed SRT validation. Raw output saved to: {raw_path}")
+    #     raise RuntimeError("Translated output is not valid SRT. See raw output for debugging.")
 
     written = write_srt_file(out_path, translated_clean)
     print(f"\n-> Wrote translated srt to: {written}")

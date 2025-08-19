@@ -1,21 +1,10 @@
 #!/usr/bin/env python3
 """
 translate_srt.py
-Updated: includes stricter prompt (returns only SRT in a code block) and SRT validation.
+Updated: Uses a stricter, English-based prompt that forbids markdown/code blocks.
+The model is instructed to return ONLY raw SRT content.
 Usage:
   python scripts/translate_srt.py --input path/to/input.zh.srt --language "English" --output path/to/output.en.srt
-Requires:
-  pip install google-genai
-Set your GEMINI_API_KEY as a repo secret / environment variable.
-
-Behavior:
-- Builds a tight prompt that instructs Gemini to return ONLY the translated SRT inside a ```srt code block.
-- Streams the generation, accumulates text, extracts the code fence content, validates SRT format.
-- If validation fails, saves the raw response for debugging to <out_path>.raw.txt and exits with non-zero.
-
-Notes:
-- This script does NOT implement chunking. If your .srt is larger than the model context, you will need chunking by SRT blocks.
-- Intended to be used in GH Actions; failing validation will cause GH Action job to fail.
 """
 
 import os
@@ -24,9 +13,7 @@ import argparse
 from google import genai
 from google.genai import types
 
-# Regex for extracting triple-backtick code fence content
-CODE_FENCE_RE = re.compile(r"```(?:\w*\n)?(.*?)```", re.DOTALL)
-# Timecode regex HH:MM:SS,mmm --> HH:MM:SS,mmm
+# Timecode regex remains the same
 TIME_RE = re.compile(r"^\d{2}:\d{2}:\d{2},\d{3} --> \d{2}:\d{2}:\d{2},\d{3}$")
 
 
@@ -35,11 +22,7 @@ def read_srt(path):
         return f.read()
 
 
-def extract_code_fence(text):
-    m = CODE_FENCE_RE.search(text)
-    if m:
-        return m.group(1).strip()
-    return text.strip()
+# The extract_code_fence function is NO LONGER NEEDED.
 
 
 def is_valid_srt(text):
@@ -53,8 +36,10 @@ def is_valid_srt(text):
     if not text or not text.strip():
         return False
 
-    # split on blank lines (one or more)
-    blocks = [b.strip() for b in re.split(r"\n\s*\n", text.strip()) if b.strip()]
+    # We strip the whole text once at the beginning to handle potential leading/trailing whitespace
+    clean_text = text.strip()
+
+    blocks = [b.strip() for b in re.split(r"\n\s*\n", clean_text) if b.strip()]
     if not blocks:
         return False
 
@@ -79,8 +64,9 @@ def is_valid_srt(text):
 def write_srt_file(path, text):
     if not path.lower().endswith('.srt'):
         path = path + '.srt'
+    # Use strip() one last time to ensure clean output
     with open(path, 'w', encoding='utf-8') as f:
-        f.write(text)
+        f.write(text.strip())
     return path
 
 
@@ -92,26 +78,21 @@ def save_raw_debug(path, raw_text):
 
 
 def build_prompt(transcript, target_language):
-    # Strict prompt that instructs model to return only the SRT inside a ```srt``` code block
+    # New, stricter, English prompt that forbids code blocks and any extra text.
+    # It commands the model to act as a pure data transformation endpoint.
     prompt = f"""
-Bạn là một dịch giả chuyên nghiệp. Tôi có một file SRT (phụ đề) bằng tiếng Trung dưới đây.
-HÃY ĐỌC KĨ VÀ DỊCH TOÀN BỘ SANG TIẾNG {target_language} cho người bản xứ đang học tiếng Trung.
+Your task is to act as an automated SRT file translation service.
+You will be provided with an SRT transcript in Chinese. You must translate the text content into {target_language}.
 
-QUAN TRỌNG — LỆNH BẮT BUỘC:
-1) Chỉ output đúng nội dung của file .srt đã dịch, không thêm bất kỳ chữ, tiêu đề, giải thích, filename, số liệu hay chú thích nào khác.
-2) Output PHẢI là SRT hợp lệ: mỗi entry có 1) số thứ tự; 2) timecode dạng `HH:MM:SS,mmm --> HH:MM:SS,mmm`; 3) dòng/nhiều dòng text dịch.
-3) Không bao gồm tiếng Trung gốc. Chỉ phần dịch tiếng {target_language}.
-4) Không thay đổi timecodes; chỉ thay đổi nội dung văn bản. Nếu timecode không hợp lệ, hãy sửa cho hợp lý nhưng giữ ý định thời gian ban đầu.
-5) Trả lời duy nhất trong một code block với cú pháp:
-```srt
-(toàn bộ nội dung file srt ở đây)
-```
-VÀ KHÔNG kèm nội dung gì bên ngoài code block.
+**CRITICAL RULES:**
+1.  **RAW OUTPUT ONLY:** Your entire response, from the very first character to the very last, MUST be the raw content of the translated .srt file.
+2.  **NO EXTRA TEXT:** DO NOT include any explanations, introductory sentences, closing remarks, apologies, or any text whatsoever that is not part of the translated SRT data.
+3.  **NO MARKDOWN:** DO NOT wrap your response in ```srt or any other markdown code blocks.
+4.  **PRESERVE STRUCTURE:** You MUST preserve the original index numbers and timecodes exactly as they appear in the input. Only translate the subtitle text itself.
+5.  **TRANSLATE ALL:** Translate all text segments completely into {target_language}.
 
-Transcript (input):
-```srt
+**Input SRT Transcript:**
 {transcript}
-```
 """
     return prompt
 
@@ -128,29 +109,41 @@ def translate_srt_with_gemini(api_key, model, input_srt_text, target_language, t
         )
     ]
 
-    generate_content_config = types.GenerateContentConfig(
-        thinking_config=types.ThinkingConfig(
-            thinking_budget=thinking_budget,
-        ),
+    # Added safety_settings to be less restrictive, which can sometimes help with formatting issues
+    safety_settings = [
+        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+    ]
+
+    generation_config = genai.types.GenerationConfig(
+        # Set temperature to a lower value for more predictable, less "creative" output
+        temperature=0.2
     )
 
     output_chunks = []
+    full_text = ""
     try:
-        for chunk in client.models.generate_content_stream(
-            model=model,
+        model_instance = client.models.get(model)
+        # Using the regular generate_content instead of stream for simplicity and atomicity,
+        # but stream is also fine.
+        response = model_instance.generate_content(
             contents=contents,
-            config=generate_content_config,
-        ):
-            if getattr(chunk, 'text', None):
-                # Print to stdout so GH Actions logs receive partial output
-                print(chunk.text, end='', flush=True)
-                output_chunks.append(chunk.text)
+            generation_config=generation_config,
+            safety_settings=safety_settings,
+        )
+        full_text = response.text
+        # Print the full response at once
+        print(full_text)
+
     except Exception as e:
         raise RuntimeError(f"Error when calling Gemini API: {e}")
 
-    full_text = ''.join(output_chunks)
-    clean = extract_code_fence(full_text)
-    return full_text, clean
+    # Since we no longer use code blocks, the full_text IS the clean text.
+    # We just strip any potential whitespace.
+    clean_text = full_text.strip()
+    return full_text, clean_text
 
 
 def main():
@@ -158,8 +151,8 @@ def main():
     parser.add_argument("--input", "-i", required=True, help="Path to input .srt (Chinese).")
     parser.add_argument("--language", "-l", required=True, help="Target language (e.g. English).")
     parser.add_argument("--output", "-o", required=False, help="Path to output .srt. If omitted adds .{lang}.srt")
-    parser.add_argument("--model", "-m", default="gemini-2.5-pro", help="Gemini model to use.")
-    parser.add_argument("--thinking-budget", type=int, default=-1, help="Thinking budget (-1 for dynamic).")
+    parser.add_argument("--model", "-m", default="gemini-1.5-pro-latest", help="Gemini model to use.")
+    parser.add_argument("--thinking-budget", type=int, default=-1, help="Thinking budget (deprecated for non-streaming).")
     args = parser.parse_args()
 
     api_key = os.environ.get("GEMINI_API_KEY")
@@ -169,7 +162,8 @@ def main():
     input_text = read_srt(args.input)
 
     print(f"Translating {args.input} -> language: {args.language} using model {args.model} ...")
-    full_text, translated_clean = translate_srt_with_gemini(
+    # The first return value is the raw response, the second is the one we'll validate
+    raw_response, translated_srt = translate_srt_with_gemini(
         api_key=api_key,
         model=args.model,
         input_srt_text=input_text,
@@ -183,14 +177,13 @@ def main():
         safe_lang = args.language.replace(' ', '_')
         out_path = f"{base}.{safe_lang}{ext}"
 
-    # Validate SRT
-    if not is_valid_srt(translated_clean):
-        # Save raw response for debugging
-        raw_path = save_raw_debug(out_path, full_text)
+    # Validate the cleaned SRT
+    if not is_valid_srt(translated_srt):
+        raw_path = save_raw_debug(out_path, raw_response)
         print(f"\nTranslated output failed SRT validation. Raw output saved to: {raw_path}")
         raise RuntimeError("Translated output is not valid SRT. See raw output for debugging.")
 
-    written = write_srt_file(out_path, translated_clean)
+    written = write_srt_file(out_path, translated_srt)
     print(f"\n-> Wrote translated srt to: {written}")
 
 

@@ -83,15 +83,13 @@ def translate_srt_with_gemini(api_key, model, input_srt_text, target_language, t
         response = client.models.generate_content(
             model=model,
             contents=contents,
-            generation_config=generate_content_config, # Đổi 'config' thành 'generation_config'
+            config=generate_content_config,
         )
 
         # Lấy toàn bộ văn bản từ phản hồi
         full_text = response.text
 
     except Exception as e:
-        # Nếu có lỗi, kiểm tra xem có thông tin phản hồi nào không
-        # Đôi khi lỗi xảy ra do nội dung bị chặn (blocked)
         if 'response' in locals() and response.prompt_feedback:
             raise RuntimeError(f"API call failed with prompt feedback: {response.prompt_feedback}")
         raise RuntimeError(f"Error when calling Gemini API: {e}")
@@ -99,7 +97,6 @@ def translate_srt_with_gemini(api_key, model, input_srt_text, target_language, t
     # Xử lý văn bản như cũ
     clean = extract_code_fence(full_text)
     return full_text, clean
-
 # --- CÁC HÀM KHÁC GIỮ NGUYÊN ---
 def read_srt(path):
     with open(path, 'r', encoding='utf-8') as f:

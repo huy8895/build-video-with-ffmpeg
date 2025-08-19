@@ -110,6 +110,7 @@ You will be provided with an SRT transcript in Chinese. You must translate the t
     return prompt
 
 
+# Nếu bạn muốn giữ nguyên mã gốc với genai.Client
 def translate_srt_with_gemini(api_key, model, input_srt_text, target_language, thinking_budget=-1):
     client = genai.Client(api_key=api_key)
 
@@ -122,6 +123,14 @@ def translate_srt_with_gemini(api_key, model, input_srt_text, target_language, t
         )
     ]
 
+    # *** THÊM PHẦN NÀY ***
+    safety_settings = {
+        HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+        HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+        HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+    }
+
     generate_content_config = types.GenerateContentConfig(
         thinking_config=types.ThinkingConfig(
             thinking_budget=thinking_budget,
@@ -130,13 +139,14 @@ def translate_srt_with_gemini(api_key, model, input_srt_text, target_language, t
 
     output_chunks = []
     try:
+        # *** THÊM safety_settings VÀO ĐÂY ***
         for chunk in client.models.generate_content_stream(
             model=model,
             contents=contents,
             config=generate_content_config,
+            safety_settings=safety_settings,
         ):
             if getattr(chunk, 'text', None):
-                # Print to stdout so GH Actions logs receive partial output
                 print(chunk.text, end='', flush=True)
                 output_chunks.append(chunk.text)
     except Exception as e:
@@ -145,7 +155,6 @@ def translate_srt_with_gemini(api_key, model, input_srt_text, target_language, t
     full_text = ''.join(output_chunks)
     clean = extract_code_fence(full_text)
     return full_text, clean
-
 
 def main():
     parser = argparse.ArgumentParser(description="Translate Chinese SRT to another language using Gemini API.")

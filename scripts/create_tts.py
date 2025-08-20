@@ -40,28 +40,24 @@ def generate_multi_speaker_tts(
     text_to_speak: str,
     speaker_voices: Dict[str, str],
     output_filename: str,
-    model: str = "gemini-2.5-pro-preview-tts"
+    model: str = "gemini-1.5-pro-preview-tts" # Bạn có thể dùng model cũ hơn nếu cần
 ):
     """
     Tạo một file âm thanh từ văn bản sử dụng nhiều giọng nói.
-
-    Args:
-        api_key: API key của Google Gemini.
-        text_to_speak: Văn bản cần chuyển đổi, có chứa các nhãn người nói (ví dụ: "Speaker 1: ...").
-        speaker_voices: Một từ điển ánh xạ nhãn người nói tới tên giọng nói (ví dụ: {"Speaker 1": "Zephyr"}).
-        output_filename: Tên file để lưu âm thanh đầu ra.
-        model: Tên model Gemini TTS để sử dụng.
     """
     print("1. Khởi tạo client kết nối tới Gemini API...")
     try:
-        genai.configure(api_key=api_key)
-        client = genai.GenerativeModel(model_name=model)
+        # ----- ĐÂY LÀ PHẦN SỬA LỖI -----
+        # Thay vì genai.configure, chúng ta khởi tạo Client trực tiếp.
+        # Đây là cú pháp cũ hơn nhưng vẫn hoạt động và không gây ra lỗi 'configure'.
+        client = genai.Client(api_key=api_key)
+        # --------------------------------
+
     except Exception as e:
         print(f"Lỗi khi khởi tạo client: {e}")
         return
 
     print("2. Chuẩn bị cấu hình giọng nói...")
-    # Xây dựng danh sách cấu hình giọng nói từ từ điển đầu vào
     speaker_configs = [
         types.SpeakerVoiceConfig(
             speaker=speaker_label,
@@ -72,13 +68,17 @@ def generate_multi_speaker_tts(
         for speaker_label, voice_name in speaker_voices.items()
     ]
 
-    # Chuẩn bị nội dung và cấu hình gửi đến API
+    # Cấu trúc nội dung và config giống với code gốc ban đầu của bạn
     contents = [
-        types.Part.from_text(text_to_speak),
+        types.Content(
+            role="user",
+            parts=[
+                types.Part.from_text(text=text_to_speak),
+            ],
+        ),
     ]
 
-    generation_config = types.GenerationConfig(
-        temperature=1.0, # Có thể điều chỉnh
+    generation_config = types.GenerateContentConfig(
         response_modalities=["audio"],
         speech_config=types.SpeechConfig(
             multi_speaker_voice_config=types.MultiSpeakerVoiceConfig(
@@ -89,36 +89,45 @@ def generate_multi_speaker_tts(
 
     print(f"3. Gửi yêu cầu tới model '{model}'...")
     try:
-        # Sử dụng stream để nhận dữ liệu âm thanh
-        response_stream = client.generate_content(
+        # ----- ĐÂY LÀ PHẦN SỬA LỖI -----
+        # Sử dụng client.models.generate_content_stream thay vì client.generate_content
+        response_stream = client.models.generate_content_stream(
+            model=model,
             contents=contents,
-            generation_config=generation_config,
-            stream=True,
+            config=generation_config,
         )
+        # --------------------------------
 
         audio_chunks = []
         first_mime_type = None
 
         print("4. Nhận và xử lý luồng âm thanh...")
         for chunk in response_stream:
-            if chunk.parts and chunk.parts[0].inline_data:
-                inline_data = chunk.parts[0].inline_data
+            # Logic xử lý chunk giữ nguyên như phiên bản đầu tiên của bạn
+            if (
+                chunk.candidates is not None
+                and chunk.candidates[0].content is not None
+                and chunk.candidates[0].content.parts is not None
+                and chunk.candidates[0].content.parts[0].inline_data
+                and chunk.candidates[0].content.parts[0].inline_data.data
+            ):
+                inline_data = chunk.candidates[0].content.parts[0].inline_data
                 if not first_mime_type:
                     first_mime_type = inline_data.mime_type
                 audio_chunks.append(inline_data.data)
 
         if not audio_chunks:
             print("Không nhận được dữ liệu âm thanh từ API.")
+            # In ra văn bản phản hồi nếu có, để debug
+            for chunk in response_stream:
+                if chunk.text:
+                    print(f"API Response Text: {chunk.text}")
             return
 
         print("5. Gộp các đoạn âm thanh và lưu file...")
-        # Gộp tất cả các đoạn âm thanh thô lại
         full_audio_data = b"".join(audio_chunks)
-
-        # Chuyển đổi dữ liệu âm thanh thô thành file WAV hoàn chỉnh
         wav_data = _convert_to_wav(full_audio_data, first_mime_type)
 
-        # Lưu file
         with open(output_filename, "wb") as f:
             f.write(wav_data)
         print(f"✅ Đã lưu file âm thanh thành công vào: {output_filename}")

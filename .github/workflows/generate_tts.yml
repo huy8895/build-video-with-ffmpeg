@@ -1,0 +1,144 @@
+name: 🎙️ Generate Multi-Speaker Audio (TTS)
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: 'Chọn môi trường (ose, mep, dde)'
+        required: true
+        default: 'ose'
+        type: choice
+        options:
+          - ose
+          - mep
+          - cdp
+      output_filename:
+        description: "Tên file âm thanh đầu ra (ví dụ: my_dialog.wav)"
+        required: true
+        default: "generated_audio.wav"
+      text_to_speak:
+        description: "Nội dung văn bản cần chuyển thành giọng nói (hỗ trợ nhiều dòng)"
+        required: true
+        type: string # 'string' sẽ hiển thị một ô nhập text lớn hơn
+        default: |
+          Speaker 1: Hello! We're excited to show you our native speech capabilities.
+          Speaker 2: Where you can direct a voice, create realistic dialog, and so much more.
+      speaker_mappings:
+        description: "Ánh xạ Người nói với Giọng nói (mỗi dòng một mapping)"
+        required: true
+        type: string
+        default: |
+          Speaker 1:Zephyr
+          Speaker 2:Puck
+      upload_folder_url:
+        description: "URL của thư mục Google Drive để tải file âm thanh lên"
+        required: false
+
+jobs:
+  generate-and-upload-audio:
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.env }}
+    env:
+      # Secrets cho Google Drive, Gemini và Telegram
+      GG_REFRESH_TOKEN: ${{ secrets.GG_REFRESH_TOKEN }}
+      YT_CLIENT_ID:     ${{ secrets.YT_CLIENT_ID }}
+      YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+      GEMINI_API_KEY:   ${{ secrets.GEMINI_API_KEY }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      
+      # Biến từ inputs để dùng trong các steps
+      UPLOAD_FOLDER_URL: ${{ inputs.upload_folder_url }}
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install google-genai google-auth google-api-python-client
+
+      - name: 🔊 Generate Audio File
+        id: generate_tts
+        run: |
+          set -e
+          echo "Bắt đầu tạo file âm thanh..."
+          mkdir -p output
+          
+          OUTPUT_PATH="output/${{ inputs.output_filename }}"
+          
+          # Xây dựng các tham số --speaker từ input nhiều dòng
+          SPEAKER_ARGS=""
+          while IFS= read -r line; do
+            # Bỏ qua các dòng trống
+            if [ -n "$line" ]; then
+              SPEAKER_ARGS+=" --speaker \"$line\""
+            fi
+          done <<< "${{ inputs.speaker_mappings }}"
+
+          # In ra lệnh sẽ chạy để debug
+          echo "Lệnh sẽ được thực thi:"
+          echo "python scripts/create_tts.py --output \"$OUTPUT_PATH\" --text \"${{ inputs.text_to_speak }}\" $SPEAKER_ARGS"
+
+          # Chạy script Python
+          python scripts/create_tts.py \
+            --output "$OUTPUT_PATH" \
+            --text "${{ inputs.text_to_speak }}" \
+            $SPEAKER_ARGS
+
+          # Kiểm tra xem file đã được tạo thành công chưa
+          if [ ! -f "$OUTPUT_PATH" ]; then
+            echo "::error::Tạo file âm thanh thất bại. File không tồn tại."
+            exit 1
+          fi
+
+          echo "✅ Đã tạo file âm thanh thành công: $OUTPUT_PATH"
+          echo "output_path=$OUTPUT_PATH" >> $GITHUB_OUTPUT
+
+      - name: 📝 Generate summary message
+        id: generate_summary
+        if: always() # Luôn chạy step này
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          SUMMARY_MESSAGE=""
+          
+          if [ "${{ steps.generate_tts.outcome }}" == "success" ]; then
+            SUMMARY_MESSAGE="✅ **Tạo Âm Thanh Hoàn Tất** ✅\n\nFile *${{ inputs.output_filename }}* đã được tạo thành công."
+          else
+            SUMMARY_MESSAGE="❌ **Tạo Âm Thanh Thất Bại** ❌\n\nVui lòng kiểm tra log để biết chi tiết."
+          fi
+          
+          SUMMARY_MESSAGE+="\n\n*Xem chi tiết tại*: [Link]($RUN_URL)"
+          
+          echo "summary_message<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$SUMMARY_MESSAGE" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: ☁️ Upload result to Drive
+        if: success() && inputs.upload_folder_url != ''
+        run: |
+          echo "Đang tải file ${{ steps.generate_tts.outputs.output_path }} lên Google Drive..."
+          # Giả định bạn có script `upload_results_to_drive.py` có thể xử lý việc này
+          # Bạn cần chỉnh sửa script này để nhận một file thay vì nhiều file
+          export UPLOAD_FILES="${{ steps.generate_tts.outputs.output_path }}"
+          python scripts/upload_results_to_drive.py
+
+      - name: 📜 Show a preview of generated file
+        if: success()
+        run: |
+          echo "File đã tạo:"
+          ls -lh output/
+          
+      - name: "📩 Notify via Telegram"
+        if: always()
+        run: |
+          # Giả định bạn có script `send_telegram_message.js`
+          export MESSAGE="${{ steps.generate_summary.outputs.summary_message }}"
+          node scripts/send_telegram_message.js

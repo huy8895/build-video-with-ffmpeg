@@ -40,7 +40,7 @@ def generate_multi_speaker_tts(
     text_to_speak: str,
     speaker_voices: Dict[str, str],
     output_filename: str,
-    model: str = "gemini-1.5-pro-preview-tts" # Bạn có thể dùng model cũ hơn nếu cần
+    model: str = "gemini-2.5-pro-preview-tts" # Bạn có thể dùng model cũ hơn nếu cần
 ):
     """
     Tạo một file âm thanh từ văn bản sử dụng nhiều giọng nói.

@@ -71,41 +71,43 @@ jobs:
           
           OUTPUT_PATH="output/${{ inputs.output_filename }}"
           
-          # ----- THAY ĐỔI 2: Logic mới để xử lý chuỗi phân tách bằng dấu phẩy -----
-          SPEAKER_ARGS=""
+          # ----- SỬA LỖI: Sử dụng mảng để lưu các đối số -----
+          # Khởi tạo một mảng rỗng
+          SPEAKER_ARGS_ARRAY=()
           
-          # Thay thế dấu phẩy bằng ký tự dòng mới để có thể lặp qua từng phần tử
+          # Thay thế dấu phẩy bằng ký tự dòng mới
           MAPPINGS_AS_LINES=$(echo "${{ inputs.speaker_mappings }}" | tr ',' '\n')
-
+          
           while IFS= read -r mapping; do
-            # Bỏ qua các phần tử rỗng (ví dụ: khi có dấu phẩy kép ,,)
-            # và xargs để xóa khoảng trắng thừa ở đầu và cuối
             trimmed_mapping=$(echo "$mapping" | xargs)
             if [ -n "$trimmed_mapping" ]; then
-              SPEAKER_ARGS+=" --speaker \"$trimmed_mapping\""
+              # Thêm --speaker làm một phần tử
+              SPEAKER_ARGS_ARRAY+=(--speaker)
+              # Thêm giá trị của nó làm một phần tử riêng biệt
+              SPEAKER_ARGS_ARRAY+=("$trimmed_mapping")
             fi
           done <<< "$MAPPINGS_AS_LINES"
           
-          # In ra lệnh sẽ chạy để debug
-          echo "Lệnh sẽ được thực thi:"
-          echo "python scripts/create_tts.py --output \"$OUTPUT_PATH\" --text \"${{ inputs.text_to_speak }}\" $SPEAKER_ARGS"
-
-          # Chạy script Python
-          # Lưu ý: $SPEAKER_ARGS không cần đặt trong dấu ngoặc kép ở đây
-          # để shell có thể phân tách nó thành nhiều đối số.
+          # In ra lệnh sẽ chạy để debug (chỉ để xem)
+          echo "Lệnh sẽ được thực thi (với các đối số được truyền đúng cách):"
+          # Dùng printf để hiển thị từng phần tử của mảng một cách an toàn
+          printf "%q " python scripts/create_tts.py --output "$OUTPUT_PATH" --text "${{ inputs.text_to_speak }}" "${SPEAKER_ARGS_ARRAY[@]}"
+          echo # In một dòng mới cho đẹp
+          
+          # Chạy script Python với các đối số từ mảng
+          # Cú pháp "${ARRAY[@]}" đảm bảo mỗi phần tử trong mảng được coi là một đối số riêng biệt
           python scripts/create_tts.py \
             --output "$OUTPUT_PATH" \
             --text "${{ inputs.text_to_speak }}" \
-            $SPEAKER_ARGS
-
+            "${SPEAKER_ARGS_ARRAY[@]}"
+          
           if [ ! -f "$OUTPUT_PATH" ]; then
             echo "::error::Tạo file âm thanh thất bại. File không tồn tại."
             exit 1
           fi
-
+          
           echo "✅ Đã tạo file âm thanh thành công: $OUTPUT_PATH"
           echo "output_path=$OUTPUT_PATH" >> $GITHUB_OUTPUT
-
       # ... Các steps còn lại giữ nguyên ...
 
       - name: 📝 Generate summary message
